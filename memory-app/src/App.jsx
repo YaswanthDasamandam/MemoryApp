@@ -163,6 +163,27 @@ function getRandomInt(max) {
   return Math.floor(Math.random() * max);
 }
 
+function getMajorSystemDigits(word) {
+  const soundToDigit = {};
+  MAJOR_SYSTEM.forEach(({ digit, sounds }) => {
+    sounds.forEach(sound => {
+      const base = sound[0].toUpperCase();
+      if (!soundToDigit[base]) soundToDigit[base] = [];
+      soundToDigit[base].push(digit);
+    });
+  });
+  const ignored = /[AEIOUWHY]/i;
+  let digits = [];
+  for (let i = 0; i < word.length; i++) {
+    const ch = word[i].toUpperCase();
+    if (ignored.test(ch)) continue;
+    if (soundToDigit[ch]) {
+      digits.push(soundToDigit[ch][0]);
+    }
+  }
+  return digits.join('');
+}
+
 function Stage1Practice({ onBack, getStats, setStats }) {
   const [mode, setMode] = useState('digit-to-sound'); // or 'sound-to-digit' or 'mixed'
   const [question, setQuestion] = useState(generateQuestion('digit-to-sound'));
@@ -486,31 +507,6 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
     setError('');
   }
 
-  function getMajorSystemDigits(word) {
-    // Map of sound to digit
-    const soundToDigit = {};
-    MAJOR_SYSTEM.forEach(({ digit, sounds }) => {
-      sounds.forEach(sound => {
-        // Only use the first letter for simple mapping (S, Z, T, D, etc.)
-        const base = sound[0].toUpperCase();
-        if (!soundToDigit[base]) soundToDigit[base] = [];
-        soundToDigit[base].push(digit);
-      });
-    });
-    // Remove vowels and ignored letters, then map to digits
-    // Major System ignores: A, E, I, O, U, W, H, Y
-    const ignored = /[AEIOUWHY]/i;
-    let digits = [];
-    for (let i = 0; i < word.length; i++) {
-      const ch = word[i].toUpperCase();
-      if (ignored.test(ch)) continue;
-      if (soundToDigit[ch]) {
-        digits.push(soundToDigit[ch][0]); // Take the first possible digit
-      }
-    }
-    return digits.join('');
-  }
-
   function handleAddWord() {
     setError('');
     if (!inputValue.trim()) return;
@@ -672,10 +668,7 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
   const [currentNum, setCurrentNum] = useState(null);
   const [inputValue, setInputValue] = useState('');
   const [feedback, setFeedback] = useState('');
-  const [showAdd, setShowAdd] = useState(false);
   const [score, setScore] = useState({ correct: 0, total: 0 });
-  const [error, setError] = useState('');
-  const [waiting, setWaiting] = useState(false);
   const inputRef = React.useRef(null);
 
   useEffect(() => {
@@ -694,7 +687,6 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
     setCurrentNum(getRandomNum());
     setInputValue('');
     setFeedback('');
-    setShowAdd(false);
     if (inputRef.current) inputRef.current.focus();
     // eslint-disable-next-line
   }, [words, score.total]);
@@ -702,8 +694,6 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
   function handleInputChange(v) {
     setInputValue(v);
     setFeedback('');
-    setShowAdd(false);
-    setError('');
   }
 
   function handleSubmit() {
@@ -711,77 +701,38 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
     const num = currentNum;
     const userWord = inputValue.trim();
     const wordList = words[num] || [];
-    if (wordList.map(w => w.toLowerCase()).includes(userWord.toLowerCase())) {
+    const expected = num;
+    const actual = getMajorSystemDigits(userWord).padStart(2, '0');
+    // Check if word is already in the list (case-insensitive, trimmed)
+    if (wordList.some(w => w.trim().toLowerCase() === userWord.toLowerCase())) {
       setFeedback('✅ Correct!');
       setScore(s => ({ correct: s.correct + 1, total: s.total + 1 }));
       showNotification('Correct!', 'success');
       setTimeout(() => {
         setInputValue('');
         setFeedback('');
-        setShowAdd(false);
         setCurrentNum(getRandomNum());
       }, 1000);
-    } else {
-      setFeedback(`❌ Incorrect. Your words: ${wordList.length ? wordList.join(', ') : 'None yet.'}`);
-      setShowAdd(true);
-      setScore(s => ({ ...s, total: s.total + 1 }));
-      showNotification('Incorrect. Try again or add the word.', 'error');
-    }
-  }
-
-  function handleAddWord() {
-    const num = currentNum;
-    const userWord = inputValue.trim();
-    // Validate with same logic as Stage2WordsPage
-    const expected = num;
-    const actual = getMajorSystemDigits(userWord).padStart(2, '0');
-    if (actual !== expected) {
-      showNotification(`Word does not match the Major System for ${num}. Encoded: ${actual}`, 'error');
-      setShowAdd(false);
-      return;
-    }
-    const newWords = { ...words };
-    newWords[num] = newWords[num] || [];
-    if (!newWords[num].includes(userWord)) {
+    } else if (actual === expected) {
+      // New valid word: add to list immediately
+      const newWords = { ...words };
+      newWords[num] = newWords[num] || [];
       newWords[num].push(userWord);
       setWordsState(newWords);
       setWords(newWords);
-      setFeedback('Word added!');
-      setError('');
-      setShowAdd(false);
-      showNotification('Word added!', 'success');
-      setWaiting(true);
+      setFeedback('New word detected and added to your list!');
+      setScore(s => ({ correct: s.correct + 1, total: s.total + 1 }));
+      showNotification('New word detected and added to your list!', 'success');
       setTimeout(() => {
         setInputValue('');
         setFeedback('');
         setCurrentNum(getRandomNum());
-        setWaiting(false);
       }, 1000);
     } else {
-      showNotification('Word already exists for this number.', 'error');
+      setFeedback(`❌ Incorrect. Your words: ${wordList.length ? wordList.join(', ') : 'None yet.'}`);
+      setScore(s => ({ ...s, total: s.total + 1 }));
+      showNotification('Incorrect. Not a valid word for this number.', 'error');
     }
-  }
-
-  // Reuse from Stage2WordsPage
-  function getMajorSystemDigits(word) {
-    const soundToDigit = {};
-    MAJOR_SYSTEM.forEach(({ digit, sounds }) => {
-      sounds.forEach(sound => {
-        const base = sound[0].toUpperCase();
-        if (!soundToDigit[base]) soundToDigit[base] = [];
-        soundToDigit[base].push(digit);
-      });
-    });
-    const ignored = /[AEIOUWHY]/i;
-    let digits = [];
-    for (let i = 0; i < word.length; i++) {
-      const ch = word[i].toUpperCase();
-      if (ignored.test(ch)) continue;
-      if (soundToDigit[ch]) {
-        digits.push(soundToDigit[ch][0]);
-      }
-    }
-    return digits.join('');
   }
 
   if (!currentNum) return null;
@@ -799,30 +750,12 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
       <WordInputBox
         inputValue={inputValue}
         setInputValue={handleInputChange}
-        onSubmit={waiting ? undefined : handleSubmit}
+        onSubmit={handleSubmit}
         inputRef={inputRef}
         placeholder="Type a word you associate with this number"
         buttonLabel="Check"
-        error={error}
-        disabled={waiting}
       />
       {feedback && <div style={{ marginBottom: 8, fontWeight: 'bold' }}>{feedback}</div>}
-      {showAdd && !waiting && (
-        <button onClick={handleAddWord} style={{ background: '#353a45', color: '#f3f3f3', border: 'none', borderRadius: 8, padding: '8px 16px', marginBottom: 8 }}>
-          Add "{inputValue.trim()}" to your list for {currentNum}
-        </button>
-      )}
-      {!waiting && (
-        <button onClick={() => {
-          setInputValue('');
-          setFeedback('');
-          setError('');
-          setShowAdd(false);
-          setCurrentNum(getRandomNum());
-        }} style={{ marginLeft: 8, background: '#444', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px' }}>
-          Skip
-        </button>
-      )}
     </div>
   );
 }
