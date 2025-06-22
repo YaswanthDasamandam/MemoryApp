@@ -184,6 +184,20 @@ function getMajorSystemDigits(word) {
   return digits.join('');
 }
 
+// Shared card style for practice/edit screens
+const cardStyle = {
+  maxWidth: 500,
+  margin: '32px auto',
+  width: '100%',
+  background: '#23272f',
+  borderRadius: 16,
+  boxShadow: '0 2px 12px rgba(0,0,0,0.12)',
+  padding: 24,
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+};
+
 function Stage1Practice({ onBack, getStats, setStats }) {
   const [mode, setMode] = useState('mixed'); // or 'sound-to-digit' or 'digit-to-sound'
   const [question, setQuestion] = useState(generateQuestion('mixed'));
@@ -259,20 +273,21 @@ function Stage1Practice({ onBack, getStats, setStats }) {
     }, 1200);
   }
 
-  function handleInputChange(e) {
-    const value = e.target.value;
-    setUserAnswer(value);
-    let qMode = mode === 'mixed' ? currentMode : mode;
-    if (value.length === 1) {
-      validateAnswer(value);
-    }
+  function handleInputChange(v) {
+    setUserAnswer(v);
+    setFeedback('');
+  }
+
+  function handleSubmit() {
+    if (!userAnswer.trim()) return;
+    validateAnswer(userAnswer);
   }
 
   return (
-    <div>
-      <button onClick={onBack}>← Back</button>
-      <h2>Stage 1: Single Digit ↔ Sound</h2>
-      <div style={{ marginBottom: 12 }}>
+    <div style={cardStyle}>
+      <button onClick={onBack} style={{ alignSelf: 'flex-start', marginBottom: 8 }}>← Back</button>
+      <h2 style={{ color: '#f3f3f3', marginBottom: 12 }}>Stage 1: Single Digit ↔ Sound</h2>
+      <div style={{ marginBottom: 16 }}>
         <button onClick={() => handleModeChange('digit-to-sound')} disabled={mode === 'digit-to-sound'}>
           Digit → Sound
         </button>
@@ -283,39 +298,29 @@ function Stage1Practice({ onBack, getStats, setStats }) {
           Mixed
         </button>
       </div>
-      <div style={{ marginBottom: 12 }}>
+      <div style={{ marginBottom: 16, fontSize: 18 }}>
         <b>Score:</b> {score.correct} / {score.total}
       </div>
-      <form onSubmit={e => e.preventDefault()}>
-        {(mode === 'digit-to-sound' || (mode === 'mixed' && currentMode === 'digit-to-sound')) ? (
-          <div>
-            <div>Digit: <b style={{ fontSize: 24 }}>{question.digit}</b></div>
-            <input
-              type="text"
-              placeholder="Enter first letter (e.g. S, Z)"
-              value={userAnswer}
-              onChange={handleInputChange}
-              maxLength={1}
-              ref={inputRef}
-              autoFocus
-            />
-          </div>
+      <div style={{ fontSize: 22, marginBottom: 10 }}>
+        {mode === 'digit-to-sound' || (mode === 'mixed' && currentMode === 'digit-to-sound') ? (
+          <>
+            Digit: <b>{question.digit}</b>
+          </>
         ) : (
-          <div>
-            <div>Sound: <b style={{ fontSize: 24 }}>{question.sound}</b></div>
-            <input
-              type="text"
-              placeholder="Enter digit (0-9)"
-              value={userAnswer}
-              onChange={handleInputChange}
-              maxLength={1}
-              ref={inputRef}
-              autoFocus
-            />
-          </div>
+          <>
+            Sound: <b>{question.sound}</b>
+          </>
         )}
-      </form>
-      {feedback && <div style={{ marginTop: 10, fontWeight: 'bold' }}>{feedback}</div>}
+      </div>
+      <WordInputBox
+        inputValue={userAnswer}
+        setInputValue={handleInputChange}
+        onSubmit={handleSubmit}
+        inputRef={inputRef}
+        placeholder={mode === 'digit-to-sound' || (mode === 'mixed' && currentMode === 'digit-to-sound') ? 'Enter first letter (e.g. S, Z)' : 'Enter digit (0-9)'}
+        asForm={true}
+      />
+      {feedback && <div style={{ marginBottom: 8, fontWeight: 'bold', color: '#fff' }}>{feedback}</div>}
     </div>
   );
 }
@@ -753,10 +758,10 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
   if (!currentNum) return null;
 
   return (
-    <div>
-      <button onClick={onBack}>← Back</button>
-      <h2>Stage 2 Practice: Number → Word</h2>
-      <div style={{ marginBottom: 12 }}>
+    <div style={cardStyle}>
+      <button onClick={onBack} style={{ alignSelf: 'flex-start', marginBottom: 8 }}>← Back</button>
+      <h2 style={{ color: '#f3f3f3', marginBottom: 12 }}>Stage 2 Practice: Number → Word</h2>
+      <div style={{ marginBottom: 16, fontSize: 18 }}>
         <b>Score:</b> {score.correct} / {score.total}
       </div>
       <div style={{ fontSize: 22, marginBottom: 10 }}>
@@ -770,7 +775,7 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
         placeholder="Type a word you associate with this number"
         asForm={true}
       />
-      {feedback && <div style={{ marginBottom: 8, fontWeight: 'bold' }}>{feedback}</div>}
+      {feedback && <div style={{ marginBottom: 8, fontWeight: 'bold', color: '#fff' }}>{feedback}</div>}
     </div>
   );
 }
