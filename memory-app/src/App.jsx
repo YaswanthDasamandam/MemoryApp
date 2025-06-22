@@ -350,6 +350,7 @@ function ProgressPage({ onBack, getStats }) {
 function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Screen, selectedNumber, setSelectedNumber }) {
   const [words, updateWords] = useState(getWords());
   const [inputValue, setInputValue] = useState('');
+  const [error, setError] = useState('');
   const inputRef = React.useRef(null);
 
   React.useEffect(() => {
@@ -375,11 +376,45 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
     setSelectedNumber(num);
     setStage2Screen('edit');
     setInputValue('');
+    setError('');
+  }
+
+  function getMajorSystemDigits(word) {
+    // Map of sound to digit
+    const soundToDigit = {};
+    MAJOR_SYSTEM.forEach(({ digit, sounds }) => {
+      sounds.forEach(sound => {
+        // Only use the first letter for simple mapping (S, Z, T, D, etc.)
+        const base = sound[0].toUpperCase();
+        if (!soundToDigit[base]) soundToDigit[base] = [];
+        soundToDigit[base].push(digit);
+      });
+    });
+    // Remove vowels and ignored letters, then map to digits
+    // Major System ignores: A, E, I, O, U, W, H, Y
+    const ignored = /[AEIOUWHY]/i;
+    let digits = [];
+    for (let i = 0; i < word.length; i++) {
+      const ch = word[i].toUpperCase();
+      if (ignored.test(ch)) continue;
+      if (soundToDigit[ch]) {
+        digits.push(soundToDigit[ch][0]); // Take the first possible digit
+      }
+    }
+    return digits.join('');
   }
 
   function handleAddWord() {
+    setError('');
     if (!inputValue.trim()) return;
     const num = selectedNumber;
+    // Validate: word must encode the number (e.g. 23 for 'name')
+    const expected = num;
+    const actual = getMajorSystemDigits(inputValue.trim()).padStart(2, '0');
+    if (actual !== expected) {
+      setError(`Word does not match the Major System for ${num}. Encoded: ${actual}`);
+      return;
+    }
     const newWords = { ...words };
     newWords[num] = newWords[num] || [];
     if (!newWords[num].includes(inputValue.trim())) {
@@ -401,6 +436,7 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
   function handleEditBack() {
     setStage2Screen('grid');
     setSelectedNumber(null);
+    setError('');
   }
 
   // Grid of numbers 00-99
@@ -477,13 +513,14 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
           <input
             type="text"
             value={inputValue}
-            onChange={e => setInputValue(e.target.value)}
+            onChange={e => { setInputValue(e.target.value); setError(''); }}
             placeholder="Add a word"
             style={{ marginRight: 8, flex: '1 1 200px', minWidth: 120, background: '#181b20', color: '#f3f3f3', border: '1px solid #353a45', borderRadius: 8, padding: '8px 10px' }}
             ref={inputRef}
           />
           <button style={{ background: '#353a45', color: '#f3f3f3', border: 'none', borderRadius: 8, padding: '8px 16px' }} onClick={handleAddWord}>Add</button>
         </div>
+        {error && <div style={{ color: 'red', marginBottom: 8 }}>{error}</div>}
         <div style={{
           display: 'flex',
           flexWrap: 'wrap',
