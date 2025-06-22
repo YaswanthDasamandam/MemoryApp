@@ -45,6 +45,25 @@ function App() {
     setStage(null);
   }
 
+  React.useEffect(() => {
+    function handleEsc(e) {
+      if (e.key === 'Escape') {
+        // Only go back if not on home
+        if (screen === 'practice' || screen === 'progress') {
+          handleBack();
+        } else if (screen === 'stage2words') {
+          // For Stage2WordsPage, let it handle Esc itself
+          if (stage2Screen === 'grid') {
+            handleBack();
+          }
+          // If in 'edit', Stage2WordsPage will handle
+        }
+      }
+    }
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [screen, stage2Screen]);
+
   return (
     <div className="app-container">
       {screen === 'home' && (
@@ -331,10 +350,26 @@ function ProgressPage({ onBack, getStats }) {
 function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Screen, selectedNumber, setSelectedNumber }) {
   const [words, updateWords] = useState(getWords());
   const [inputValue, setInputValue] = useState('');
+  const inputRef = React.useRef(null);
 
   React.useEffect(() => {
     updateWords(getWords());
   }, [stage2Screen]);
+
+  // Esc key handling for edit mode
+  React.useEffect(() => {
+    function handleEsc(e) {
+      if (e.key === 'Escape' && stage2Screen === 'edit') {
+        // Only go back if input is not focused or is empty
+        if (!inputRef.current || document.activeElement !== inputRef.current || !inputValue) {
+          setStage2Screen('grid');
+          setSelectedNumber(null);
+        }
+      }
+    }
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [stage2Screen, inputValue]);
 
   function handleNumberClick(num) {
     setSelectedNumber(num);
@@ -445,6 +480,7 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
             onChange={e => setInputValue(e.target.value)}
             placeholder="Add a word"
             style={{ marginRight: 8, flex: '1 1 200px', minWidth: 120, background: '#181b20', color: '#f3f3f3', border: '1px solid #353a45', borderRadius: 8, padding: '8px 10px' }}
+            ref={inputRef}
           />
           <button style={{ background: '#353a45', color: '#f3f3f3', border: 'none', borderRadius: 8, padding: '8px 16px' }} onClick={handleAddWord}>Add</button>
         </div>
