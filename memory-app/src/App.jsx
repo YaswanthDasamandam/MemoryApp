@@ -646,6 +646,7 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
           placeholder="Add a word"
           buttonLabel="Add"
           error={error}
+          asForm={true}
         />
         <div style={{
           display: 'flex',
