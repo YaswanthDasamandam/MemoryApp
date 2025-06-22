@@ -693,11 +693,9 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
   }, []);
 
   function getRandomNum() {
-    // Only pick numbers with at least one word, or all numbers if none
+    // Always pick from all numbers 00-99, not just those with words
     const allNums = Array.from({ length: 100 }, (_, i) => i.toString().padStart(2, '0'));
-    const numsWithWords = allNums.filter(num => (words[num] && words[num].length > 0));
-    const pool = numsWithWords.length > 0 ? numsWithWords : allNums;
-    return pool[Math.floor(Math.random() * pool.length)];
+    return allNums[Math.floor(Math.random() * allNums.length)];
   }
 
   useEffect(() => {
