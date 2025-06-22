@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
 import React from 'react'
 
@@ -95,6 +95,14 @@ function App() {
           setStage2Screen={setStage2Screen}
           selectedNumber={selectedNumber}
           setSelectedNumber={setSelectedNumber}
+          onPractice={() => setScreen('stage2practice')}
+        />
+      )}
+      {screen === 'stage2practice' && (
+        <Stage2Practice
+          onBack={() => setScreen('stage2words')}
+          getWords={getWords}
+          setWords={setWords}
         />
       )}
     </div>
@@ -347,7 +355,52 @@ function ProgressPage({ onBack, getStats }) {
   );
 }
 
-function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Screen, selectedNumber, setSelectedNumber }) {
+// Reusable input box for adding/checking words
+function WordInputBox({ inputValue, setInputValue, onSubmit, inputRef, placeholder, buttonLabel, error, style, disabled }) {
+  return (
+    <div style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 8, ...style }}>
+      <input
+        type="text"
+        value={inputValue}
+        onChange={e => setInputValue(e.target.value)}
+        placeholder={placeholder}
+        style={{
+          marginRight: 8,
+          flex: '1 1 300px',
+          minWidth: 200,
+          fontSize: 20,
+          background: '#181b20',
+          color: '#f3f3f3',
+          border: '1.5px solid #353a45',
+          borderRadius: 8,
+          padding: '14px 16px',
+          ...((style && style.input) || {})
+        }}
+        ref={inputRef}
+        autoFocus
+        disabled={disabled}
+      />
+      <button
+        style={{
+          background: '#353a45',
+          color: '#f3f3f3',
+          border: 'none',
+          borderRadius: 8,
+          padding: '14px 24px',
+          fontSize: 18,
+          ...((style && style.button) || {})
+        }}
+        onClick={onSubmit}
+        disabled={disabled}
+      >
+        {buttonLabel}
+      </button>
+      {error && <div style={{ color: 'red', marginTop: 8, width: '100%' }}>{error}</div>}
+    </div>
+  );
+}
+
+function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Screen, selectedNumber, setSelectedNumber, onPractice }) {
   const [words, updateWords] = useState(getWords());
   const [inputValue, setInputValue] = useState('');
   const [error, setError] = useState('');
@@ -445,6 +498,7 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
       <div>
         <button onClick={onBack}>← Back</button>
         <h2>Edit Words for Numbers (00–99)</h2>
+        <button style={{ marginBottom: 12 }} onClick={onPractice}>Practice Mode</button>
         <div
           style={{
             display: 'grid',
@@ -509,18 +563,15 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
       <div style={{ maxWidth: 500, margin: '0 auto', width: '100%', background: '#23272f', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.12)', padding: 24 }}>
         <button onClick={handleEditBack}>← Back to Grid</button>
         <h2 style={{ color: '#f3f3f3' }}>Words for {num}</h2>
-        <div style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          <input
-            type="text"
-            value={inputValue}
-            onChange={e => { setInputValue(e.target.value); setError(''); }}
-            placeholder="Add a word"
-            style={{ marginRight: 8, flex: '1 1 200px', minWidth: 120, background: '#181b20', color: '#f3f3f3', border: '1px solid #353a45', borderRadius: 8, padding: '8px 10px' }}
-            ref={inputRef}
-          />
-          <button style={{ background: '#353a45', color: '#f3f3f3', border: 'none', borderRadius: 8, padding: '8px 16px' }} onClick={handleAddWord}>Add</button>
-        </div>
-        {error && <div style={{ color: 'red', marginBottom: 8 }}>{error}</div>}
+        <WordInputBox
+          inputValue={inputValue}
+          setInputValue={v => { setInputValue(v); setError(''); }}
+          onSubmit={handleAddWord}
+          inputRef={inputRef}
+          placeholder="Add a word"
+          buttonLabel="Add"
+          error={error}
+        />
         <div style={{
           display: 'flex',
           flexWrap: 'wrap',
@@ -556,6 +607,162 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
     );
   }
   return null;
+}
+
+// Stage 2 Practice Mode: Number → Word, with add-new-word option
+function Stage2Practice({ onBack, getWords, setWords }) {
+  const [words, setWordsState] = useState(getWords());
+  const [currentNum, setCurrentNum] = useState(null);
+  const [inputValue, setInputValue] = useState('');
+  const [feedback, setFeedback] = useState('');
+  const [showAdd, setShowAdd] = useState(false);
+  const [score, setScore] = useState({ correct: 0, total: 0 });
+  const [error, setError] = useState('');
+  const [waiting, setWaiting] = useState(false);
+  const inputRef = React.useRef(null);
+
+  useEffect(() => {
+    setWordsState(getWords());
+  }, []);
+
+  function getRandomNum() {
+    // Only pick numbers with at least one word, or all numbers if none
+    const allNums = Array.from({ length: 100 }, (_, i) => i.toString().padStart(2, '0'));
+    const numsWithWords = allNums.filter(num => (words[num] && words[num].length > 0));
+    const pool = numsWithWords.length > 0 ? numsWithWords : allNums;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  useEffect(() => {
+    setCurrentNum(getRandomNum());
+    setInputValue('');
+    setFeedback('');
+    setShowAdd(false);
+    if (inputRef.current) inputRef.current.focus();
+    // eslint-disable-next-line
+  }, [words, score.total]);
+
+  function handleInputChange(v) {
+    setInputValue(v);
+    setFeedback('');
+    setShowAdd(false);
+    setError('');
+  }
+
+  function handleSubmit() {
+    if (!inputValue.trim()) return;
+    const num = currentNum;
+    const userWord = inputValue.trim();
+    const wordList = words[num] || [];
+    if (wordList.map(w => w.toLowerCase()).includes(userWord.toLowerCase())) {
+      setFeedback('✅ Correct!');
+      setScore(s => ({ correct: s.correct + 1, total: s.total + 1 }));
+      setTimeout(() => {
+        setInputValue('');
+        setFeedback('');
+        setShowAdd(false);
+        setCurrentNum(getRandomNum());
+      }, 1000);
+    } else {
+      setFeedback(`❌ Incorrect. Your words: ${wordList.length ? wordList.join(', ') : 'None yet.'}`);
+      setShowAdd(true);
+      setScore(s => ({ ...s, total: s.total + 1 }));
+    }
+  }
+
+  function handleAddWord() {
+    const num = currentNum;
+    const userWord = inputValue.trim();
+    // Validate with same logic as Stage2WordsPage
+    const expected = num;
+    const actual = getMajorSystemDigits(userWord).padStart(2, '0');
+    if (actual !== expected) {
+      setError(`Word does not match the Major System for ${num}. Encoded: ${actual}`);
+      setShowAdd(false);
+      return;
+    }
+    const newWords = { ...words };
+    newWords[num] = newWords[num] || [];
+    if (!newWords[num].includes(userWord)) {
+      newWords[num].push(userWord);
+      setWordsState(newWords);
+      setWords(newWords);
+      setFeedback('Word added!');
+      setError('');
+      setShowAdd(false);
+      setWaiting(true);
+      setTimeout(() => {
+        setInputValue('');
+        setFeedback('');
+        setCurrentNum(getRandomNum());
+        setWaiting(false);
+      }, 1000);
+    }
+  }
+
+  // Reuse from Stage2WordsPage
+  function getMajorSystemDigits(word) {
+    const soundToDigit = {};
+    MAJOR_SYSTEM.forEach(({ digit, sounds }) => {
+      sounds.forEach(sound => {
+        const base = sound[0].toUpperCase();
+        if (!soundToDigit[base]) soundToDigit[base] = [];
+        soundToDigit[base].push(digit);
+      });
+    });
+    const ignored = /[AEIOUWHY]/i;
+    let digits = [];
+    for (let i = 0; i < word.length; i++) {
+      const ch = word[i].toUpperCase();
+      if (ignored.test(ch)) continue;
+      if (soundToDigit[ch]) {
+        digits.push(soundToDigit[ch][0]);
+      }
+    }
+    return digits.join('');
+  }
+
+  if (!currentNum) return null;
+
+  return (
+    <div>
+      <button onClick={onBack}>← Back</button>
+      <h2>Stage 2 Practice: Number → Word</h2>
+      <div style={{ marginBottom: 12 }}>
+        <b>Score:</b> {score.correct} / {score.total}
+      </div>
+      <div style={{ fontSize: 22, marginBottom: 10 }}>
+        Number: <b>{currentNum}</b>
+      </div>
+      <WordInputBox
+        inputValue={inputValue}
+        setInputValue={handleInputChange}
+        onSubmit={waiting ? undefined : handleSubmit}
+        inputRef={inputRef}
+        placeholder="Type a word you associate with this number"
+        buttonLabel="Check"
+        error={error}
+        disabled={waiting}
+      />
+      {feedback && <div style={{ marginBottom: 8, fontWeight: 'bold' }}>{feedback}</div>}
+      {showAdd && !waiting && (
+        <button onClick={handleAddWord} style={{ background: '#353a45', color: '#f3f3f3', border: 'none', borderRadius: 8, padding: '8px 16px', marginBottom: 8 }}>
+          Add "{inputValue.trim()}" to your list for {currentNum}
+        </button>
+      )}
+      {!waiting && (
+        <button onClick={() => {
+          setInputValue('');
+          setFeedback('');
+          setError('');
+          setShowAdd(false);
+          setCurrentNum(getRandomNum());
+        }} style={{ marginLeft: 8, background: '#444', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px' }}>
+          Skip
+        </button>
+      )}
+    </div>
+  );
 }
 
 export default App
