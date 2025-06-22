@@ -79,27 +79,38 @@ function getRandomInt(max) {
 }
 
 function Stage1Practice({ onBack }) {
-  const [mode, setMode] = useState('digit-to-sound'); // or 'sound-to-digit'
+  const [mode, setMode] = useState('digit-to-sound'); // or 'sound-to-digit' or 'mixed'
   const [question, setQuestion] = useState(generateQuestion('digit-to-sound'));
   const [userAnswer, setUserAnswer] = useState('');
   const [feedback, setFeedback] = useState('');
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const inputRef = React.useRef(null);
+  const [currentMode, setCurrentMode] = useState('digit-to-sound'); // for mixed mode
+
+  function getRandomMode() {
+    return Math.random() < 0.5 ? 'digit-to-sound' : 'sound-to-digit';
+  }
 
   function generateQuestion(mode) {
-    if (mode === 'digit-to-sound') {
+    let actualMode = mode;
+    if (mode === 'mixed') {
+      actualMode = getRandomMode();
+    }
+    if (actualMode === 'digit-to-sound') {
       const idx = getRandomInt(10);
-      return { digit: MAJOR_SYSTEM[idx].digit, sounds: MAJOR_SYSTEM[idx].sounds };
+      return { type: 'digit-to-sound', digit: MAJOR_SYSTEM[idx].digit, sounds: MAJOR_SYSTEM[idx].sounds };
     } else {
       const idx = getRandomInt(10);
       const sound = MAJOR_SYSTEM[idx].sounds[getRandomInt(MAJOR_SYSTEM[idx].sounds.length)];
-      return { digit: MAJOR_SYSTEM[idx].digit, sound };
+      return { type: 'sound-to-digit', digit: MAJOR_SYSTEM[idx].digit, sound };
     }
   }
 
   function handleModeChange(newMode) {
     setMode(newMode);
-    setQuestion(generateQuestion(newMode));
+    const q = generateQuestion(newMode);
+    setQuestion(q);
+    setCurrentMode(q.type || newMode);
     setUserAnswer('');
     setFeedback('');
     if (inputRef.current) inputRef.current.focus();
@@ -108,7 +119,8 @@ function Stage1Practice({ onBack }) {
   function validateAnswer(answer) {
     let isCorrect = false;
     let correctDisplay = '';
-    if (mode === 'digit-to-sound') {
+    let qMode = mode === 'mixed' ? currentMode : mode;
+    if (qMode === 'digit-to-sound') {
       isCorrect = question.sounds.some(
         s => s[0].toLowerCase() === answer.trim().toLowerCase()
       );
@@ -120,7 +132,9 @@ function Stage1Practice({ onBack }) {
     setFeedback((isCorrect ? '✅ Correct! ' : '❌ Incorrect. ') + correctDisplay);
     setScore(s => ({ correct: s.correct + (isCorrect ? 1 : 0), total: s.total + 1 }));
     setTimeout(() => {
-      setQuestion(generateQuestion(mode));
+      const q = generateQuestion(mode);
+      setQuestion(q);
+      setCurrentMode(q.type || mode);
       setUserAnswer('');
       setFeedback('');
       if (inputRef.current) inputRef.current.focus();
@@ -130,6 +144,7 @@ function Stage1Practice({ onBack }) {
   function handleInputChange(e) {
     const value = e.target.value;
     setUserAnswer(value);
+    let qMode = mode === 'mixed' ? currentMode : mode;
     if (value.length === 1) {
       validateAnswer(value);
     }
@@ -146,12 +161,15 @@ function Stage1Practice({ onBack }) {
         <button onClick={() => handleModeChange('sound-to-digit')} disabled={mode === 'sound-to-digit'} style={{ marginLeft: 8 }}>
           Sound → Digit
         </button>
+        <button onClick={() => handleModeChange('mixed')} disabled={mode === 'mixed'} style={{ marginLeft: 8 }}>
+          Mixed
+        </button>
       </div>
       <div style={{ marginBottom: 12 }}>
         <b>Score:</b> {score.correct} / {score.total}
       </div>
       <form onSubmit={e => e.preventDefault()}>
-        {mode === 'digit-to-sound' ? (
+        {(mode === 'digit-to-sound' || (mode === 'mixed' && currentMode === 'digit-to-sound')) ? (
           <div>
             <div>Digit: <b style={{ fontSize: 24 }}>{question.digit}</b></div>
             <input
