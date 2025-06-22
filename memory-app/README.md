@@ -2,6 +2,27 @@
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
+## How to Run This App
+
+### Prerequisites
+- [Node.js](https://nodejs.org/) (v16 or higher recommended)
+- [npm](https://www.npmjs.com/) (comes with Node.js)
+
+### Installation
+1. Open a terminal and navigate to this `memory-app` directory.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+### Running the Development Server
+Start the app locally with:
+```bash
+npm run dev
+```
+
+This will start the Vite development server. By default, you can access the app at [http://localhost:5173/](http://localhost:5173/).
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
