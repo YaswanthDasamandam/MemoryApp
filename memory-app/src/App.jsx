@@ -185,8 +185,8 @@ function getMajorSystemDigits(word) {
 }
 
 function Stage1Practice({ onBack, getStats, setStats }) {
-  const [mode, setMode] = useState('digit-to-sound'); // or 'sound-to-digit' or 'mixed'
-  const [question, setQuestion] = useState(generateQuestion('digit-to-sound'));
+  const [mode, setMode] = useState('mixed'); // or 'sound-to-digit' or 'digit-to-sound'
+  const [question, setQuestion] = useState(generateQuestion('mixed'));
   const [userAnswer, setUserAnswer] = useState('');
   const [feedback, setFeedback] = useState('');
   const [score, setScore] = useState({ correct: 0, total: 0 });
