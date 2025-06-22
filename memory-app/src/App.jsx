@@ -12,6 +12,8 @@ function App() {
   const [stage, setStage] = useState(null);
   const [stage2Screen, setStage2Screen] = useState('grid'); // 'grid' or 'edit'
   const [selectedNumber, setSelectedNumber] = useState(null);
+  const [notification, setNotification] = useState({ message: '', type: 'success' });
+  const notificationTimeout = React.useRef();
 
   // Track stats in localStorage
   function getStats() {
@@ -64,8 +66,27 @@ function App() {
     return () => window.removeEventListener('keydown', handleEsc);
   }, [screen, stage2Screen]);
 
+  function showNotification(message, type = 'success') {
+    setNotification({ message, type });
+    if (notificationTimeout.current) clearTimeout(notificationTimeout.current);
+    notificationTimeout.current = setTimeout(() => {
+      setNotification({ message: '', type });
+    }, 2200);
+  }
+
+  React.useEffect(() => {
+    return () => {
+      if (notificationTimeout.current) clearTimeout(notificationTimeout.current);
+    };
+  }, []);
+
   return (
     <div className="app-container">
+      <Notification
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification({ message: '', type: notification.type })}
+      />
       {screen === 'home' && (
         <>
           <h1>Memory Practice App</h1>
@@ -96,6 +117,7 @@ function App() {
           selectedNumber={selectedNumber}
           setSelectedNumber={setSelectedNumber}
           onPractice={() => setScreen('stage2practice')}
+          showNotification={showNotification}
         />
       )}
       {screen === 'stage2practice' && (
@@ -103,6 +125,7 @@ function App() {
           onBack={() => setScreen('stage2words')}
           getWords={getWords}
           setWords={setWords}
+          showNotification={showNotification}
         />
       )}
     </div>
@@ -400,7 +423,38 @@ function WordInputBox({ inputValue, setInputValue, onSubmit, inputRef, placehold
   );
 }
 
-function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Screen, selectedNumber, setSelectedNumber, onPractice }) {
+function Notification({ message, type, onClose }) {
+  if (!message) return null;
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: 32,
+        right: 32,
+        zIndex: 1000,
+        minWidth: 220,
+        maxWidth: 340,
+        padding: '16px 28px',
+        background: type === 'success' ? '#2ecc40' : '#ff4136',
+        color: '#fff',
+        borderRadius: 12,
+        boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
+        fontSize: 18,
+        fontWeight: 500,
+        display: 'flex',
+        alignItems: 'center',
+        transition: 'opacity 0.3s',
+      }}
+      role="alert"
+      onClick={onClose}
+    >
+      {message}
+      <span style={{ marginLeft: 16, cursor: 'pointer', fontWeight: 700 }}>&times;</span>
+    </div>
+  );
+}
+
+function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Screen, selectedNumber, setSelectedNumber, onPractice, showNotification }) {
   const [words, updateWords] = useState(getWords());
   const [inputValue, setInputValue] = useState('');
   const [error, setError] = useState('');
@@ -465,7 +519,7 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
     const expected = num;
     const actual = getMajorSystemDigits(inputValue.trim()).padStart(2, '0');
     if (actual !== expected) {
-      setError(`Word does not match the Major System for ${num}. Encoded: ${actual}`);
+      showNotification(`Word does not match the Major System for ${num}. Encoded: ${actual}`, 'error');
       return;
     }
     const newWords = { ...words };
@@ -474,6 +528,9 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
       newWords[num].push(inputValue.trim());
       updateWords(newWords);
       setWords(newWords);
+      showNotification('Word added!', 'success');
+    } else {
+      showNotification('Word already exists for this number.', 'error');
     }
     setInputValue('');
   }
@@ -610,7 +667,7 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
 }
 
 // Stage 2 Practice Mode: Number → Word, with add-new-word option
-function Stage2Practice({ onBack, getWords, setWords }) {
+function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
   const [words, setWordsState] = useState(getWords());
   const [currentNum, setCurrentNum] = useState(null);
   const [inputValue, setInputValue] = useState('');
@@ -657,6 +714,7 @@ function Stage2Practice({ onBack, getWords, setWords }) {
     if (wordList.map(w => w.toLowerCase()).includes(userWord.toLowerCase())) {
       setFeedback('✅ Correct!');
       setScore(s => ({ correct: s.correct + 1, total: s.total + 1 }));
+      showNotification('Correct!', 'success');
       setTimeout(() => {
         setInputValue('');
         setFeedback('');
@@ -667,6 +725,7 @@ function Stage2Practice({ onBack, getWords, setWords }) {
       setFeedback(`❌ Incorrect. Your words: ${wordList.length ? wordList.join(', ') : 'None yet.'}`);
       setShowAdd(true);
       setScore(s => ({ ...s, total: s.total + 1 }));
+      showNotification('Incorrect. Try again or add the word.', 'error');
     }
   }
 
@@ -677,7 +736,7 @@ function Stage2Practice({ onBack, getWords, setWords }) {
     const expected = num;
     const actual = getMajorSystemDigits(userWord).padStart(2, '0');
     if (actual !== expected) {
-      setError(`Word does not match the Major System for ${num}. Encoded: ${actual}`);
+      showNotification(`Word does not match the Major System for ${num}. Encoded: ${actual}`, 'error');
       setShowAdd(false);
       return;
     }
@@ -690,6 +749,7 @@ function Stage2Practice({ onBack, getWords, setWords }) {
       setFeedback('Word added!');
       setError('');
       setShowAdd(false);
+      showNotification('Word added!', 'success');
       setWaiting(true);
       setTimeout(() => {
         setInputValue('');
@@ -697,6 +757,8 @@ function Stage2Practice({ onBack, getWords, setWords }) {
         setCurrentNum(getRandomNum());
         setWaiting(false);
       }, 1000);
+    } else {
+      showNotification('Word already exists for this number.', 'error');
     }
   }
 
