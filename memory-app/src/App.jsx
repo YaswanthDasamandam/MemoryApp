@@ -10,6 +10,8 @@ const STAGES = [
 function App() {
   const [screen, setScreen] = useState('home');
   const [stage, setStage] = useState(null);
+  const [stage2Screen, setStage2Screen] = useState('grid'); // 'grid' or 'edit'
+  const [selectedNumber, setSelectedNumber] = useState(null);
 
   // Track stats in localStorage
   function getStats() {
@@ -19,9 +21,23 @@ function App() {
     localStorage.setItem('memoryStats', JSON.stringify(stats));
   }
 
+  // Stage 2 words in localStorage
+  function getWords() {
+    return JSON.parse(localStorage.getItem('stage2Words') || '{}');
+  }
+  function setWords(words) {
+    localStorage.setItem('stage2Words', JSON.stringify(words));
+  }
+
   function handleStageSelect(stageId) {
     setStage(stageId);
-    setScreen('practice');
+    if (stageId === 2) {
+      setScreen('stage2words');
+      setStage2Screen('grid');
+      setSelectedNumber(null);
+    } else {
+      setScreen('practice');
+    }
   }
 
   function handleBack() {
@@ -50,6 +66,17 @@ function App() {
       )}
       {screen === 'progress' && (
         <ProgressPage onBack={handleBack} getStats={getStats} />
+      )}
+      {screen === 'stage2words' && (
+        <Stage2WordsPage
+          onBack={handleBack}
+          getWords={getWords}
+          setWords={setWords}
+          stage2Screen={stage2Screen}
+          setStage2Screen={setStage2Screen}
+          selectedNumber={selectedNumber}
+          setSelectedNumber={setSelectedNumber}
+        />
       )}
     </div>
   );
@@ -299,6 +326,163 @@ function ProgressPage({ onBack, getStats }) {
       )}
     </div>
   );
+}
+
+function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Screen, selectedNumber, setSelectedNumber }) {
+  const [words, updateWords] = useState(getWords());
+  const [inputValue, setInputValue] = useState('');
+
+  React.useEffect(() => {
+    updateWords(getWords());
+  }, [stage2Screen]);
+
+  function handleNumberClick(num) {
+    setSelectedNumber(num);
+    setStage2Screen('edit');
+    setInputValue('');
+  }
+
+  function handleAddWord() {
+    if (!inputValue.trim()) return;
+    const num = selectedNumber;
+    const newWords = { ...words };
+    newWords[num] = newWords[num] || [];
+    if (!newWords[num].includes(inputValue.trim())) {
+      newWords[num].push(inputValue.trim());
+      updateWords(newWords);
+      setWords(newWords);
+    }
+    setInputValue('');
+  }
+
+  function handleRemoveWord(word) {
+    const num = selectedNumber;
+    const newWords = { ...words };
+    newWords[num] = newWords[num].filter(w => w !== word);
+    updateWords(newWords);
+    setWords(newWords);
+  }
+
+  function handleEditBack() {
+    setStage2Screen('grid');
+    setSelectedNumber(null);
+  }
+
+  // Grid of numbers 00-99
+  if (stage2Screen === 'grid') {
+    return (
+      <div>
+        <button onClick={onBack}>← Back</button>
+        <h2>Edit Words for Numbers (00–99)</h2>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(60px, 1fr))',
+            gap: 8,
+            maxWidth: 1100,
+            margin: '0 auto',
+            width: '100%',
+            background: 'var(--stage2-bg, #23272f)',
+            borderRadius: 16,
+            boxShadow: '0 2px 12px rgba(0,0,0,0.12)',
+            padding: 8,
+          }}
+        >
+          {Array.from({ length: 100 }, (_, i) => {
+            const num = i.toString().padStart(2, '0');
+            const wordList = words[num] || [];
+            let preview = '';
+            if (wordList.length > 0) {
+              preview = wordList.slice(0, 2).join(', ');
+              if (wordList.length > 2) {
+                preview += ` +${wordList.length - 2} more`;
+              }
+            }
+            return (
+              <button
+                key={num}
+                style={{
+                  padding: 6,
+                  minHeight: 36,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 14,
+                  wordBreak: 'break-word',
+                  background: '#23272f',
+                  color: '#f3f3f3',
+                  border: '1px solid #353a45',
+                  borderRadius: 8,
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.10)',
+                  transition: 'background 0.2s',
+                }}
+                onClick={() => handleNumberClick(num)}
+              >
+                <div style={{ fontWeight: 'bold', fontSize: 15 }}>{num}</div>
+                <div style={{ fontSize: 10, color: '#b0b6c3', marginTop: 2, minHeight: 12 }}>
+                  {preview}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // Edit words for a selected number
+  if (stage2Screen === 'edit') {
+    const num = selectedNumber;
+    return (
+      <div style={{ maxWidth: 500, margin: '0 auto', width: '100%', background: '#23272f', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.12)', padding: 24 }}>
+        <button onClick={handleEditBack}>← Back to Grid</button>
+        <h2 style={{ color: '#f3f3f3' }}>Words for {num}</h2>
+        <div style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <input
+            type="text"
+            value={inputValue}
+            onChange={e => setInputValue(e.target.value)}
+            placeholder="Add a word"
+            style={{ marginRight: 8, flex: '1 1 200px', minWidth: 120, background: '#181b20', color: '#f3f3f3', border: '1px solid #353a45', borderRadius: 8, padding: '8px 10px' }}
+          />
+          <button style={{ background: '#353a45', color: '#f3f3f3', border: 'none', borderRadius: 8, padding: '8px 16px' }} onClick={handleAddWord}>Add</button>
+        </div>
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 10,
+          marginBottom: 16,
+        }}>
+          {(words[num] || []).map(word => (
+            <div
+              key={word}
+              style={{
+                background: '#353a45',
+                color: '#f3f3f3',
+                padding: '8px 14px',
+                borderRadius: 16,
+                display: 'flex',
+                alignItems: 'center',
+                marginBottom: 6,
+                fontSize: 16,
+              }}
+            >
+              {word}
+              <button
+                onClick={() => handleRemoveWord(word)}
+                style={{ marginLeft: 8, fontSize: 13, padding: '2px 8px', borderRadius: 8, background: '#181b20', color: '#f3f3f3', border: 'none' }}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+        {(!words[num] || words[num].length === 0) && <div style={{ color: '#888' }}>No words yet for {num}.</div>}
+      </div>
+    );
+  }
+  return null;
 }
 
 export default App
