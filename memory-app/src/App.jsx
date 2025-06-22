@@ -11,6 +11,14 @@ function App() {
   const [screen, setScreen] = useState('home');
   const [stage, setStage] = useState(null);
 
+  // Track stats in localStorage
+  function getStats() {
+    return JSON.parse(localStorage.getItem('memoryStats') || '{}');
+  }
+  function setStats(stats) {
+    localStorage.setItem('memoryStats', JSON.stringify(stats));
+  }
+
   function handleStageSelect(stageId) {
     setStage(stageId);
     setScreen('practice');
@@ -38,18 +46,18 @@ function App() {
         </>
       )}
       {screen === 'practice' && (
-        <PracticeStage stage={stage} onBack={handleBack} />
+        <PracticeStage stage={stage} onBack={handleBack} getStats={getStats} setStats={setStats} />
       )}
       {screen === 'progress' && (
-        <ProgressPage onBack={handleBack} />
+        <ProgressPage onBack={handleBack} getStats={getStats} />
       )}
     </div>
   );
 }
 
-function PracticeStage({ stage, onBack }) {
+function PracticeStage({ stage, onBack, getStats, setStats }) {
   if (stage === 1) {
-    return <Stage1Practice onBack={onBack} />;
+    return <Stage1Practice onBack={onBack} getStats={getStats} setStats={setStats} />;
   }
   // Stage 2 placeholder
   return (
@@ -78,7 +86,7 @@ function getRandomInt(max) {
   return Math.floor(Math.random() * max);
 }
 
-function Stage1Practice({ onBack }) {
+function Stage1Practice({ onBack, getStats, setStats }) {
   const [mode, setMode] = useState('digit-to-sound'); // or 'sound-to-digit' or 'mixed'
   const [question, setQuestion] = useState(generateQuestion('digit-to-sound'));
   const [userAnswer, setUserAnswer] = useState('');
@@ -120,15 +128,27 @@ function Stage1Practice({ onBack }) {
     let isCorrect = false;
     let correctDisplay = '';
     let qMode = mode === 'mixed' ? currentMode : mode;
+    let stats = getStats();
     if (qMode === 'digit-to-sound') {
       isCorrect = question.sounds.some(
         s => s[0].toLowerCase() === answer.trim().toLowerCase()
       );
       correctDisplay = `Correct answers: ${question.sounds.map(s => s[0].toUpperCase() + s.slice(1)).join(', ')}`;
+      // Track per-digit
+      const key = `digit_${question.digit}`;
+      stats[key] = stats[key] || { attempts: 0, correct: 0 };
+      stats[key].attempts++;
+      if (isCorrect) stats[key].correct++;
     } else {
       isCorrect = String(question.digit) === answer.trim();
       correctDisplay = `Correct answer: ${question.digit}`;
+      // Track per-sound
+      const key = `sound_${question.sound.toUpperCase()}`;
+      stats[key] = stats[key] || { attempts: 0, correct: 0 };
+      stats[key].attempts++;
+      if (isCorrect) stats[key].correct++;
     }
+    setStats(stats);
     setFeedback((isCorrect ? '✅ Correct! ' : '❌ Incorrect. ') + correctDisplay);
     setScore(s => ({ correct: s.correct + (isCorrect ? 1 : 0), total: s.total + 1 }));
     setTimeout(() => {
@@ -202,12 +222,62 @@ function Stage1Practice({ onBack }) {
   );
 }
 
-function ProgressPage({ onBack }) {
+function ProgressPage({ onBack, getStats }) {
+  const stats = getStats();
+  // Gather digit stats
+  const digitStats = [];
+  for (let d = 0; d <= 9; d++) {
+    const key = `digit_${d}`;
+    const s = stats[key] || { attempts: 0, correct: 0 };
+    digitStats.push({ digit: d, ...s });
+  }
+  // Gather sound stats
+  const soundKeys = Object.keys(stats).filter(k => k.startsWith('sound_'));
+  const soundStats = soundKeys.map(k => ({ sound: k.replace('sound_', ''), ...stats[k] }));
+
+  // Sort by lowest accuracy, only show those with at least 3 attempts
+  const weakestDigits = digitStats
+    .filter(s => s.attempts >= 3)
+    .map(s => ({ ...s, accuracy: s.attempts > 0 ? s.correct / s.attempts : 1 }))
+    .sort((a, b) => a.accuracy - b.accuracy)
+    .slice(0, 3);
+  const weakestSounds = soundStats
+    .filter(s => s.attempts >= 3)
+    .map(s => ({ ...s, accuracy: s.attempts > 0 ? s.correct / s.attempts : 1 }))
+    .sort((a, b) => a.accuracy - b.accuracy)
+    .slice(0, 3);
+
   return (
     <div>
       <button onClick={onBack}>← Back</button>
-      <h2>Your Progress</h2>
-      <p>Progress tracking coming soon!</p>
+      <h2>Your Weakest Areas</h2>
+      {weakestDigits.length === 0 && weakestSounds.length === 0 && (
+        <p>Practice more to see your weak areas!</p>
+      )}
+      {weakestDigits.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <b>Digits:</b>
+          <ul>
+            {weakestDigits.map(({ digit, correct, attempts, accuracy }) => (
+              <li key={digit}>
+                {digit} (Digit): {(accuracy * 100).toFixed(0)}% correct ({correct}/{attempts})
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {weakestSounds.length > 0 && (
+        <div>
+          <b>Sounds:</b>
+          <ul>
+            {weakestSounds.map(({ sound, correct, attempts, accuracy }) => (
+              <li key={sound}>
+                {sound} (Sound): {(accuracy * 100).toFixed(0)}% correct ({correct}/{attempts})
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
