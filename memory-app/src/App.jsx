@@ -247,10 +247,29 @@ function ProgressPage({ onBack, getStats }) {
     .sort((a, b) => a.accuracy - b.accuracy)
     .slice(0, 3);
 
+  function handleRestart() {
+    localStorage.removeItem('memoryStats');
+    window.location.reload();
+  }
+
+  function handleDownload() {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(stats, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", "memoryStats.json");
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  }
+
   return (
     <div>
       <button onClick={onBack}>← Back</button>
       <h2>Your Weakest Areas</h2>
+      <div style={{ marginBottom: 16 }}>
+        <button onClick={handleRestart} style={{ marginRight: 8 }}>Restart Progress</button>
+        <button onClick={handleDownload}>Download Data</button>
+      </div>
       {weakestDigits.length === 0 && weakestSounds.length === 0 && (
         <p>Practice more to see your weak areas!</p>
       )}
