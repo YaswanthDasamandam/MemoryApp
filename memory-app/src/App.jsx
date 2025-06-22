@@ -400,30 +400,47 @@ function ProgressPage({ onBack, getStats }) {
 }
 
 // Reusable input box for adding/checking words
-function WordInputBox({ inputValue, setInputValue, onSubmit, inputRef, placeholder, buttonLabel, error, style, disabled }) {
+function WordInputBox({ inputValue, setInputValue, onSubmit, inputRef, placeholder, buttonLabel, error, style, disabled, asForm }) {
+  const inputElement = (
+    <input
+      type="text"
+      value={inputValue}
+      onChange={e => setInputValue(e.target.value)}
+      placeholder={placeholder}
+      style={{
+        marginRight: 8,
+        flex: '1 1 300px',
+        minWidth: 200,
+        fontSize: 20,
+        background: '#181b20',
+        color: '#f3f3f3',
+        border: '1.5px solid #353a45',
+        borderRadius: 8,
+        padding: '14px 16px',
+        ...((style && style.input) || {})
+      }}
+      ref={inputRef}
+      autoFocus
+      disabled={disabled}
+    />
+  );
+  if (asForm) {
+    return (
+      <form
+        onSubmit={e => {
+          e.preventDefault();
+          onSubmit();
+        }}
+        style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 8, ...style }}
+      >
+        {inputElement}
+        {error && <div style={{ color: 'red', marginTop: 8, width: '100%' }}>{error}</div>}
+      </form>
+    );
+  }
   return (
     <div style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 8, ...style }}>
-      <input
-        type="text"
-        value={inputValue}
-        onChange={e => setInputValue(e.target.value)}
-        placeholder={placeholder}
-        style={{
-          marginRight: 8,
-          flex: '1 1 300px',
-          minWidth: 200,
-          fontSize: 20,
-          background: '#181b20',
-          color: '#f3f3f3',
-          border: '1.5px solid #353a45',
-          borderRadius: 8,
-          padding: '14px 16px',
-          ...((style && style.input) || {})
-        }}
-        ref={inputRef}
-        autoFocus
-        disabled={disabled}
-      />
+      {inputElement}
       <button
         style={{
           background: '#353a45',
@@ -753,7 +770,7 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
         onSubmit={handleSubmit}
         inputRef={inputRef}
         placeholder="Type a word you associate with this number"
-        buttonLabel="Check"
+        asForm={true}
       />
       {feedback && <div style={{ marginBottom: 8, fontWeight: 'bold' }}>{feedback}</div>}
     </div>
