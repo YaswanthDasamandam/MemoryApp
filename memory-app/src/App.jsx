@@ -536,7 +536,7 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
     // Validate: word must encode the number (e.g. 23 for 'name')
     const expected = num;
     const actual = getMajorSystemDigits(inputValue.trim()).padStart(2, '0');
-    if (actual !== expected) {
+    if (actual.slice(0, 2) !== expected) {
       showNotification(`Word does not match the Major System for ${num}. Encoded: ${actual}`, 'error');
       return;
     }
