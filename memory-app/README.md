@@ -10,3 +10,19 @@ Currently, two official plugins are available:
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+## Planned Feature: Weak Areas Analysis & Targeted Practice
+
+### Overview
+- The app will track your performance for each digit (0–9) and each sound/letter in the Major System.
+- An "Analysis" or "Progress" page will show your accuracy and attempts for each digit/sound, helping you identify strengths and weaknesses.
+- You will be able to start a "Practice Weak Areas" session, which focuses on the digits/sounds where your accuracy is lowest.
+
+### How it will work
+- Every answer you give will be recorded (locally or in the cloud).
+- The analysis page will display stats and visualizations for your performance.
+- The targeted practice mode will help you improve your weakest areas efficiently.
+
+---
+
+*This feature is planned for a future update. If you want to contribute or prioritize this, please open an issue or pull request!*
