@@ -694,6 +694,17 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const inputRef = React.useRef(null);
 
+  // Add Escape key handler for back navigation
+  useEffect(() => {
+    function handleEsc(e) {
+      if (e.key === 'Escape') {
+        onBack();
+      }
+    }
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [onBack]);
+
   useEffect(() => {
     setWordsState(getWords());
   }, []);
