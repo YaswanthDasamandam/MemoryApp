@@ -302,15 +302,17 @@ function Stage1Practice({ onBack, getStats, setStats }) {
       <button onClick={onBack} style={{ alignSelf: 'flex-start', marginBottom: 8 }}>← Back</button>
       <h2 style={{ color: '#f3f3f3', marginBottom: 12 }}>Stage 1: Single Digit ↔ Sound</h2>
       <div style={{ marginBottom: 16 }}>
-        <button onClick={() => handleModeChange('digit-to-sound')} disabled={mode === 'digit-to-sound'}>
-          Digit → Sound
-        </button>
-        <button onClick={() => handleModeChange('sound-to-digit')} disabled={mode === 'sound-to-digit'} style={{ marginLeft: 8 }}>
-          Sound → Digit
-        </button>
-        <button onClick={() => handleModeChange('mixed')} disabled={mode === 'mixed'} style={{ marginLeft: 8 }}>
-          Mixed
-        </button>
+        <div className="button-group">
+          <button onClick={() => handleModeChange('digit-to-sound')} disabled={mode === 'digit-to-sound'}>
+            Digit → Sound
+          </button>
+          <button onClick={() => handleModeChange('sound-to-digit')} disabled={mode === 'sound-to-digit'}>
+            Sound → Digit
+          </button>
+          <button onClick={() => handleModeChange('mixed')} disabled={mode === 'mixed'}>
+            Mixed
+          </button>
+        </div>
       </div>
       <div style={{ marginBottom: 16, fontSize: 18 }}>
         <b>Score:</b> {score.correct} / {score.total}
@@ -521,7 +523,21 @@ function isSubsequence(sub, str) {
   return i === sub.length;
 }
 
+// Utility: detect if mobile (window width <= 600px)
+function useIsMobile() {
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth <= 600);
+  React.useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth <= 600);
+    }
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  return isMobile;
+}
+
 function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Screen, selectedNumber, setSelectedNumber, onPractice, showNotification }) {
+  const isMobile = useIsMobile();
   const [words, updateWords] = useState(getWords());
   const [inputValue, setInputValue] = useState('');
   const [error, setError] = useState('');
@@ -645,11 +661,11 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
       <div>
         <button onClick={onBack}>← Back</button>
         {/* Top bar: Practice Mode left, Download/Upload right */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, marginTop: 8 }}>
+        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', marginBottom: 8, marginTop: 8, gap: isMobile ? 8 : 0 }}>
           <div>
             <button onClick={onPractice}>Practice Mode</button>
           </div>
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 10, flexDirection: isMobile ? 'column' : 'row' }}>
             <button onClick={handleDownloadWords}>Download Words</button>
             <button onClick={handleUploadClick}>Upload Words</button>
             <input
@@ -665,15 +681,15 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(60px, 1fr))',
-            gap: 8,
-            maxWidth: 1100,
+            gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(auto-fit, minmax(60px, 1fr))',
+            gap: isMobile ? 4 : 8,
+            maxWidth: isMobile ? '100vw' : 1100,
             margin: '0 auto',
             width: '100%',
             background: 'var(--stage2-bg, #23272f)',
             borderRadius: 16,
             boxShadow: '0 2px 12px rgba(0,0,0,0.12)',
-            padding: 8,
+            padding: isMobile ? 2 : 8,
           }}
         >
           {allNumbers.map(num => {
@@ -722,7 +738,7 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
   if (stage2Screen === 'edit') {
     const num = selectedNumber;
     return (
-      <div style={{ maxWidth: 500, margin: '0 auto', width: '100%', background: '#23272f', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.12)', padding: 24 }}>
+      <div style={{ maxWidth: 500, margin: '0 auto', width: '100%', background: '#23272f', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.12)', padding: isMobile ? 12 : 24 }}>
         <button onClick={handleEditBack}>← Back to Grid</button>
         <h2 style={{ color: '#f3f3f3' }}>Words for {num}</h2>
         <WordInputBox
@@ -774,6 +790,7 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
 
 // Stage 2 Practice Mode: Number → Word, with add-new-word option
 function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
+  const isMobile = useIsMobile();
   const [words, setWordsState] = useState(getWords());
   const [currentNum, setCurrentNum] = useState(null);
   const [inputValue, setInputValue] = useState('');
@@ -905,7 +922,7 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
   if (!currentNum) return null;
 
   return (
-    <div style={cardStyle}>
+    <div style={{ ...cardStyle, padding: isMobile ? 12 : 24 }}>
       <button onClick={onBack} style={{ alignSelf: 'flex-start', marginBottom: 8 }}>← Back</button>
       <h2 style={{ color: '#f3f3f3', marginBottom: 12 }}>Stage 2 Practice: Number → Word</h2>
       <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -923,7 +940,7 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
       <div style={{ fontSize: 22, marginBottom: 10 }}>
         Number: <b>{currentNum}</b>
       </div>
-      <div style={{ display: 'flex', gap: 8, width: '100%', maxWidth: 500 }}>
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, width: '100%', maxWidth: 500 }}>
         <WordInputBox
           inputValue={inputValue}
           setInputValue={handleInputChange}
