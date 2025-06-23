@@ -721,41 +721,48 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
   const [feedback, setFeedback] = useState('');
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const inputRef = React.useRef(null);
+  // Customization: Practice only existing words toggle
+  const [practiceExistingOnly, setPracticeExistingOnly] = useState(() => {
+    return localStorage.getItem('practiceExistingOnly') === 'true';
+  });
 
-  // Add Escape key handler for back navigation
-  useEffect(() => {
-    function handleEsc(e) {
-      if (e.key === 'Escape') {
-        onBack();
+  // Helper to get next number based on practiceExistingOnly
+  function getNextPracticeNumber() {
+    if (practiceExistingOnly) {
+      const numbersWithWords = Object.keys(words).filter(num => (words[num] && words[num].length));
+      if (numbersWithWords.length > 0) {
+        return numbersWithWords[Math.floor(Math.random() * numbersWithWords.length)];
+      } else {
+        return getRandomNum(); // fallback
       }
+    } else {
+      return getRandomNum();
     }
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [onBack]);
-
-  useEffect(() => {
-    setWordsState(getWords());
-  }, []);
-
-  function getRandomNum() {
-    // Pick from both single digits '0'-'9' and two-digit numbers '00'-'99'
-    const singleDigits = Array.from({ length: 10 }, (_, i) => i.toString());
-    const twoDigits = Array.from({ length: 100 }, (_, i) => i.toString().padStart(2, '0'));
-    const allNums = [...singleDigits, ...twoDigits];
-    return allNums[Math.floor(Math.random() * allNums.length)];
   }
 
-  // Initialize currentNum on mount only
-  useEffect(() => {
-    setCurrentNum(getRandomNum());
+  function handleTogglePracticeMode() {
+    setPracticeExistingOnly(v => {
+      const newValue = !v;
+      localStorage.setItem('practiceExistingOnly', newValue);
+      // If turning ON, check if currentNum has words; if not, pick a new one that does
+      if (newValue) {
+        const wordList = words[currentNum] || [];
+        if (!wordList.length) {
+          setCurrentNum(getNextPracticeNumber());
+          setInputValue('');
+          setFeedback('');
+          if (inputRef.current) inputRef.current.focus();
+        }
+      }
+      return newValue;
+    });
+  }
+
+  function handleSkip() {
     setInputValue('');
     setFeedback('');
+    setCurrentNum(getNextPracticeNumber());
     if (inputRef.current) inputRef.current.focus();
-  }, []);
-
-  function handleInputChange(v) {
-    setInputValue(v);
-    setFeedback('');
   }
 
   function handleSubmit() {
@@ -772,10 +779,10 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
       setTimeout(() => {
         setInputValue('');
         setFeedback('');
-        setCurrentNum(getRandomNum());
+        setCurrentNum(getNextPracticeNumber());
         if (inputRef.current) inputRef.current.focus();
       }, 1000);
-    } else if (encodings.some(actual => isSubsequence(expected, actual))) {
+    } else if (!practiceExistingOnly && encodings.some(actual => isSubsequence(expected, actual))) {
       // New valid word: add to list immediately
       const newWords = { ...words };
       newWords[num] = newWords[num] || [];
@@ -788,7 +795,19 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
       setTimeout(() => {
         setInputValue('');
         setFeedback('');
-        setCurrentNum(getRandomNum());
+        setCurrentNum(getNextPracticeNumber());
+        if (inputRef.current) inputRef.current.focus();
+      }, 1000);
+    } else if (practiceExistingOnly && encodings.some(actual => isSubsequence(expected, actual))) {
+      const existingMsg = wordList.length
+        ? `Try an existing word: ${wordList.join(', ')}`
+        : 'No words yet for this number.';
+      setFeedback(`❌ Not in your list. ${existingMsg}`);
+      setScore(s => ({ ...s, total: s.total + 1 }));
+      showNotification('Not in your list. Try an existing word.', 'error');
+      setTimeout(() => {
+        setInputValue('');
+        setFeedback('');
         if (inputRef.current) inputRef.current.focus();
       }, 1000);
     } else {
@@ -803,11 +822,25 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
     }
   }
 
-  function handleSkip() {
+  // Initialize currentNum on mount only
+  useEffect(() => {
+    setCurrentNum(getNextPracticeNumber());
     setInputValue('');
     setFeedback('');
-    setCurrentNum(getRandomNum());
     if (inputRef.current) inputRef.current.focus();
+  }, []);
+
+  function getRandomNum() {
+    // Pick from both single digits '0'-'9' and two-digit numbers '00'-'99'
+    const singleDigits = Array.from({ length: 10 }, (_, i) => i.toString());
+    const twoDigits = Array.from({ length: 100 }, (_, i) => i.toString().padStart(2, '0'));
+    const allNums = [...singleDigits, ...twoDigits];
+    return allNums[Math.floor(Math.random() * allNums.length)];
+  }
+
+  function handleInputChange(v) {
+    setInputValue(v);
+    setFeedback('');
   }
 
   if (!currentNum) return null;
@@ -816,8 +849,17 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
     <div style={cardStyle}>
       <button onClick={onBack} style={{ alignSelf: 'flex-start', marginBottom: 8 }}>← Back</button>
       <h2 style={{ color: '#f3f3f3', marginBottom: 12 }}>Stage 2 Practice: Number → Word</h2>
-      <div style={{ marginBottom: 16, fontSize: 18 }}>
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
         <b>Score:</b> {score.correct} / {score.total}
+        <label style={{ display: 'flex', alignItems: 'center', marginLeft: 24, fontSize: 16, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={practiceExistingOnly}
+            onChange={handleTogglePracticeMode}
+            style={{ marginRight: 6 }}
+          />
+          Strict mode (saved words only)
+        </label>
       </div>
       <div style={{ fontSize: 22, marginBottom: 10 }}>
         Number: <b>{currentNum}</b>
