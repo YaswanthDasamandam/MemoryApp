@@ -526,6 +526,8 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
   const [inputValue, setInputValue] = useState('');
   const [error, setError] = useState('');
   const inputRef = React.useRef(null);
+  // For upload
+  const fileInputRef = React.useRef(null);
 
   React.useEffect(() => {
     updateWords(getWords());
@@ -590,6 +592,47 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
     setError('');
   }
 
+  // --- Download/Upload Handlers ---
+  function handleDownloadWords() {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(words, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", "stage2Words.json");
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  }
+
+  function handleUploadClick() {
+    if (fileInputRef.current) fileInputRef.current.value = null; // reset
+    fileInputRef.current && fileInputRef.current.click();
+  }
+
+  function handleFileChange(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      try {
+        const imported = JSON.parse(event.target.result);
+        if (typeof imported !== 'object' || Array.isArray(imported)) throw new Error('Invalid format');
+        // Merge with current words (or replace? Here: merge)
+        const merged = { ...words };
+        for (const num in imported) {
+          if (Array.isArray(imported[num])) {
+            merged[num] = Array.from(new Set([...(merged[num] || []), ...imported[num]]));
+          }
+        }
+        updateWords(merged);
+        setWords(merged);
+        showNotification('Words imported successfully!', 'success');
+      } catch (err) {
+        showNotification('Failed to import: Invalid file.', 'error');
+      }
+    };
+    reader.readAsText(file);
+  }
+
   // Grid of numbers 0-9 and 00-99
   if (stage2Screen === 'grid') {
     // Create an array of single digits as strings '0'-'9'
@@ -601,8 +644,24 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
     return (
       <div>
         <button onClick={onBack}>← Back</button>
+        {/* Top bar: Practice Mode left, Download/Upload right */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, marginTop: 8 }}>
+          <div>
+            <button onClick={onPractice}>Practice Mode</button>
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={handleDownloadWords}>Download Words</button>
+            <button onClick={handleUploadClick}>Upload Words</button>
+            <input
+              type="file"
+              accept="application/json"
+              style={{ display: 'none' }}
+              ref={fileInputRef}
+              onChange={handleFileChange}
+            />
+          </div>
+        </div>
         <h2>Edit Words for Numbers (0–9, 00–99)</h2>
-        <button style={{ marginBottom: 12 }} onClick={onPractice}>Practice Mode</button>
         <div
           style={{
             display: 'grid',
