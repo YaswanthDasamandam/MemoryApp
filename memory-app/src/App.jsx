@@ -497,6 +497,16 @@ function Notification({ message, type, onClose }) {
   );
 }
 
+// Helper: check if subsequence
+function isSubsequence(sub, str) {
+  let i = 0, j = 0;
+  while (i < sub.length && j < str.length) {
+    if (sub[i] === str[j]) i++;
+    j++;
+  }
+  return i === sub.length;
+}
+
 function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Screen, selectedNumber, setSelectedNumber, onPractice, showNotification }) {
   const [words, updateWords] = useState(getWords());
   const [inputValue, setInputValue] = useState('');
@@ -533,10 +543,9 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
     setError('');
     if (!inputValue.trim()) return;
     const num = selectedNumber;
-    // Validate: word must encode the number (e.g. 23 for 'name')
     const expected = num;
     const actual = getMajorSystemDigits(inputValue.trim()).padStart(2, '0');
-    if (!actual.includes(expected)) {
+    if (!isSubsequence(expected, actual)) {
       showNotification(`Word does not match the Major System for ${num}. Encoded: ${actual}`, 'error');
       return;
     }
@@ -735,7 +744,6 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
     const wordList = words[num] || [];
     const expected = num;
     const actual = getMajorSystemDigits(userWord).padStart(2, '0');
-    // Check if word is already in the list (case-insensitive, trimmed)
     if (wordList.some(w => w.trim().toLowerCase() === userWord.toLowerCase())) {
       setFeedback('✅ Correct!');
       setScore(s => ({ correct: s.correct + 1, total: s.total + 1 }));
@@ -745,7 +753,7 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
         setFeedback('');
         setCurrentNum(getRandomNum());
       }, 1000);
-    } else if (actual === expected) {
+    } else if (isSubsequence(expected, actual)) {
       // New valid word: add to list immediately
       const newWords = { ...words };
       newWords[num] = newWords[num] || [];
