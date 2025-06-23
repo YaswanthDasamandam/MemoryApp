@@ -23,12 +23,33 @@ function App() {
     localStorage.setItem('memoryStats', JSON.stringify(stats));
   }
 
+  // Utility: Normalize a word to capitalized form
+  function normalizeWord(word) {
+    if (!word) return word;
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }
+
   // Stage 2 words in localStorage
   function getWords() {
-    return JSON.parse(localStorage.getItem('stage2Words') || '{}');
+    const raw = JSON.parse(localStorage.getItem('stage2Words') || '{}');
+    // Normalize all words to capitalized form
+    const normalized = {};
+    for (const num in raw) {
+      if (Array.isArray(raw[num])) {
+        normalized[num] = Array.from(new Set(raw[num].map(w => normalizeWord(w.trim()))));
+      }
+    }
+    return normalized;
   }
   function setWords(words) {
-    localStorage.setItem('stage2Words', JSON.stringify(words));
+    // Normalize before saving
+    const normalized = {};
+    for (const num in words) {
+      if (Array.isArray(words[num])) {
+        normalized[num] = Array.from(new Set(words[num].map(w => normalizeWord(w.trim()))));
+      }
+    }
+    localStorage.setItem('stage2Words', JSON.stringify(normalized));
   }
 
   function handleStageSelect(stageId) {
@@ -583,7 +604,8 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
     }
     const newWords = { ...words };
     newWords[num] = newWords[num] || [];
-    if (!newWords[num].includes(inputValue.trim())) {
+    // Case-insensitive duplicate check
+    if (!newWords[num].some(w => w.trim().toLowerCase() === inputValue.trim().toLowerCase())) {
       newWords[num].push(inputValue.trim());
       updateWords(newWords);
       setWords(newWords);
@@ -597,7 +619,8 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
   function handleRemoveWord(word) {
     const num = selectedNumber;
     const newWords = { ...words };
-    newWords[num] = newWords[num].filter(w => w !== word);
+    // Remove all case-insensitive matches
+    newWords[num] = newWords[num].filter(w => w.trim().toLowerCase() !== word.trim().toLowerCase());
     updateWords(newWords);
     setWords(newWords);
   }
@@ -636,7 +659,9 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
         const merged = { ...words };
         for (const num in imported) {
           if (Array.isArray(imported[num])) {
-            merged[num] = Array.from(new Set([...(merged[num] || []), ...imported[num]]));
+            // Normalize imported words
+            const normWords = imported[num].map(w => normalizeWord(w.trim()));
+            merged[num] = Array.from(new Set([...(merged[num] || []).map(w => normalizeWord(w.trim())), ...normWords]));
           }
         }
         updateWords(merged);
@@ -848,6 +873,7 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
     const wordList = words[num] || [];
     const expected = num;
     const encodings = getMajorSystemDigits(userWord).map(e => e.padStart(2, '0'));
+    // Case-insensitive match
     if (wordList.some(w => w.trim().toLowerCase() === userWord.toLowerCase())) {
       setFeedback('✅ Correct!');
       setScore(s => ({ correct: s.correct + 1, total: s.total + 1 }));
@@ -859,21 +885,24 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
         if (inputRef.current) inputRef.current.focus();
       }, 1000);
     } else if (!practiceExistingOnly && encodings.some(actual => isSubsequence(expected, actual))) {
-      // New valid word: add to list immediately
+      // New valid word: add to list immediately (case-insensitive check)
       const newWords = { ...words };
       newWords[num] = newWords[num] || [];
-      newWords[num].push(userWord);
-      setWordsState(newWords);
-      setWords(newWords);
-      setFeedback('New word detected and added to your list!');
-      setScore(s => ({ correct: s.correct + 1, total: s.total + 1 }));
-      showNotification('New word detected and added to your list!', 'success');
-      setTimeout(() => {
-        setInputValue('');
-        setFeedback('');
-        setCurrentNum(getNextPracticeNumber());
-        if (inputRef.current) inputRef.current.focus();
-      }, 1000);
+      if (!newWords[num].some(w => w.trim().toLowerCase() === userWord.toLowerCase())) {
+        newWords[num].push(userWord);
+        setWordsState(newWords);
+        setWords(newWords);
+        setFeedback('New word detected and added to your list!');
+        setScore(s => ({ correct: s.correct + 1, total: s.total + 1 }));
+        showNotification('New word detected and added to your list!', 'success');
+        setTimeout(() => {
+          setInputValue('');
+          setFeedback('');
+          setCurrentNum(getNextPracticeNumber());
+          if (inputRef.current) inputRef.current.focus();
+        }, 1000);
+        return;
+      }
     } else if (practiceExistingOnly && encodings.some(actual => isSubsequence(expected, actual))) {
       const existingMsg = wordList.length
         ? `Try an existing word: ${wordList.join(', ')}`
