@@ -164,24 +164,38 @@ function getRandomInt(max) {
 }
 
 function getMajorSystemDigits(word) {
-  const soundToDigit = {};
+  // Build a map from letter to possible digits
+  const soundToDigits = {};
   MAJOR_SYSTEM.forEach(({ digit, sounds }) => {
     sounds.forEach(sound => {
       const base = sound[0].toUpperCase();
-      if (!soundToDigit[base]) soundToDigit[base] = [];
-      soundToDigit[base].push(digit);
+      if (!soundToDigits[base]) soundToDigits[base] = new Set();
+      soundToDigits[base].add(digit);
     });
   });
   const ignored = /[AEIOUWHY]/i;
-  let digits = [];
+  // For each letter, get possible digits (or null if ignored)
+  let digitOptions = [];
   for (let i = 0; i < word.length; i++) {
     const ch = word[i].toUpperCase();
     if (ignored.test(ch)) continue;
-    if (soundToDigit[ch]) {
-      digits.push(soundToDigit[ch][0]);
+    if (soundToDigits[ch]) {
+      digitOptions.push(Array.from(soundToDigits[ch]));
     }
   }
-  return digits.join('');
+  // Generate all combinations
+  function combine(arr, prefix = [], out = []) {
+    if (arr.length === 0) {
+      out.push(prefix.join(''));
+      return out;
+    }
+    for (let d of arr[0]) {
+      combine(arr.slice(1), [...prefix, d], out);
+    }
+    return out;
+  }
+  if (digitOptions.length === 0) return [''];
+  return combine(digitOptions);
 }
 
 // Shared card style for practice/edit screens
@@ -544,9 +558,9 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
     if (!inputValue.trim()) return;
     const num = selectedNumber;
     const expected = num;
-    const actual = getMajorSystemDigits(inputValue.trim()).padStart(2, '0');
-    if (!isSubsequence(expected, actual)) {
-      showNotification(`Word does not match the Major System for ${num}. Encoded: ${actual}`, 'error');
+    const encodings = getMajorSystemDigits(inputValue.trim()).map(e => e.padStart(2, '0'));
+    if (!encodings.some(actual => isSubsequence(expected, actual))) {
+      showNotification(`Word does not match the Major System for ${num}. Encoded: ${encodings.join(', ')}`, 'error');
       return;
     }
     const newWords = { ...words };
@@ -750,7 +764,7 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
     const userWord = inputValue.trim();
     const wordList = words[num] || [];
     const expected = num;
-    const actual = getMajorSystemDigits(userWord).padStart(2, '0');
+    const encodings = getMajorSystemDigits(userWord).map(e => e.padStart(2, '0'));
     if (wordList.some(w => w.trim().toLowerCase() === userWord.toLowerCase())) {
       setFeedback('✅ Correct!');
       setScore(s => ({ correct: s.correct + 1, total: s.total + 1 }));
@@ -760,7 +774,7 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
         setFeedback('');
         setCurrentNum(getRandomNum());
       }, 1000);
-    } else if (isSubsequence(expected, actual)) {
+    } else if (encodings.some(actual => isSubsequence(expected, actual))) {
       // New valid word: add to list immediately
       const newWords = { ...words };
       newWords[num] = newWords[num] || [];
@@ -808,3 +822,4 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
 }
 
 export default App
+
