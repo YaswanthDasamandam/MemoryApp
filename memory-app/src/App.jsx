@@ -576,12 +576,18 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
     setError('');
   }
 
-  // Grid of numbers 00-99
+  // Grid of numbers 0-9 and 00-99
   if (stage2Screen === 'grid') {
+    // Create an array of single digits as strings '0'-'9'
+    const singleDigits = Array.from({ length: 10 }, (_, i) => i.toString());
+    // Create an array of two-digit numbers as strings '00'-'99'
+    const twoDigits = Array.from({ length: 100 }, (_, i) => i.toString().padStart(2, '0'));
+    // Combine for the grid
+    const allNumbers = [...singleDigits, ...twoDigits];
     return (
       <div>
         <button onClick={onBack}>← Back</button>
-        <h2>Edit Words for Numbers (00–99)</h2>
+        <h2>Edit Words for Numbers (0–9, 00–99)</h2>
         <button style={{ marginBottom: 12 }} onClick={onPractice}>Practice Mode</button>
         <div
           style={{
@@ -597,8 +603,7 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
             padding: 8,
           }}
         >
-          {Array.from({ length: 100 }, (_, i) => {
-            const num = i.toString().padStart(2, '0');
+          {allNumbers.map(num => {
             const wordList = words[num] || [];
             let preview = '';
             if (wordList.length > 0) {
@@ -719,8 +724,10 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
   }, []);
 
   function getRandomNum() {
-    // Always pick from all numbers 00-99, not just those with words
-    const allNums = Array.from({ length: 100 }, (_, i) => i.toString().padStart(2, '0'));
+    // Pick from both single digits '0'-'9' and two-digit numbers '00'-'99'
+    const singleDigits = Array.from({ length: 10 }, (_, i) => i.toString());
+    const twoDigits = Array.from({ length: 100 }, (_, i) => i.toString().padStart(2, '0'));
+    const allNums = [...singleDigits, ...twoDigits];
     return allNums[Math.floor(Math.random() * allNums.length)];
   }
 
