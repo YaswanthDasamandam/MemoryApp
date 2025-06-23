@@ -745,13 +745,13 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
     return allNums[Math.floor(Math.random() * allNums.length)];
   }
 
+  // Initialize currentNum on mount only
   useEffect(() => {
     setCurrentNum(getRandomNum());
     setInputValue('');
     setFeedback('');
     if (inputRef.current) inputRef.current.focus();
-    // eslint-disable-next-line
-  }, [words, score.total]);
+  }, []);
 
   function handleInputChange(v) {
     setInputValue(v);
@@ -773,6 +773,7 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
         setInputValue('');
         setFeedback('');
         setCurrentNum(getRandomNum());
+        if (inputRef.current) inputRef.current.focus();
       }, 1000);
     } else if (encodings.some(actual => isSubsequence(expected, actual))) {
       // New valid word: add to list immediately
@@ -788,11 +789,17 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
         setInputValue('');
         setFeedback('');
         setCurrentNum(getRandomNum());
+        if (inputRef.current) inputRef.current.focus();
       }, 1000);
     } else {
       setFeedback(`❌ Incorrect. Your words: ${wordList.length ? wordList.join(', ') : 'None yet.'}`);
       setScore(s => ({ ...s, total: s.total + 1 }));
       showNotification('Incorrect. Not a valid word for this number.', 'error');
+      setTimeout(() => {
+        setInputValue('');
+        setFeedback('');
+        if (inputRef.current) inputRef.current.focus();
+      }, 1000);
     }
   }
 
