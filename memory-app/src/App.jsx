@@ -803,6 +803,13 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
     }
   }
 
+  function handleSkip() {
+    setInputValue('');
+    setFeedback('');
+    setCurrentNum(getRandomNum());
+    if (inputRef.current) inputRef.current.focus();
+  }
+
   if (!currentNum) return null;
 
   return (
@@ -815,14 +822,34 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
       <div style={{ fontSize: 22, marginBottom: 10 }}>
         Number: <b>{currentNum}</b>
       </div>
-      <WordInputBox
-        inputValue={inputValue}
-        setInputValue={handleInputChange}
-        onSubmit={handleSubmit}
-        inputRef={inputRef}
-        placeholder="Type a word you associate with this number"
-        asForm={true}
-      />
+      <div style={{ display: 'flex', gap: 8, width: '100%', maxWidth: 500 }}>
+        <WordInputBox
+          inputValue={inputValue}
+          setInputValue={handleInputChange}
+          onSubmit={handleSubmit}
+          inputRef={inputRef}
+          placeholder="Type a word you associate with this number"
+          asForm={true}
+          style={{ flex: 1, marginBottom: 0 }}
+        />
+        <button
+          onClick={handleSkip}
+          style={{
+            background: '#888',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 8,
+            padding: '14px 18px',
+            fontSize: 18,
+            height: 52,
+            alignSelf: 'center',
+            cursor: 'pointer',
+            marginLeft: 0
+          }}
+        >
+          Skip
+        </button>
+      </div>
       {feedback && <div style={{ marginBottom: 8, fontWeight: 'bold', color: '#fff' }}>{feedback}</div>}
     </div>
   );
