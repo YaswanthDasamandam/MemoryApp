@@ -762,10 +762,34 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
   // Edit words for a selected number
   if (stage2Screen === 'edit') {
     const num = selectedNumber;
+    // List of all numbers as in the grid
+    const singleDigits = Array.from({ length: 10 }, (_, i) => i.toString());
+    const twoDigits = Array.from({ length: 100 }, (_, i) => i.toString().padStart(2, '0'));
+    const allNumbers = [...singleDigits, ...twoDigits];
+    const currentIdx = allNumbers.indexOf(num);
+    // Handlers for navigation
+    function goToPrev() {
+      if (currentIdx > 0) {
+        setSelectedNumber(allNumbers[currentIdx - 1]);
+        setInputValue('');
+        setError('');
+      }
+    }
+    function goToNext() {
+      if (currentIdx < allNumbers.length - 1) {
+        setSelectedNumber(allNumbers[currentIdx + 1]);
+        setInputValue('');
+        setError('');
+      }
+    }
     return (
       <div style={{ maxWidth: 500, margin: '0 auto', width: '100%', background: '#23272f', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.12)', padding: isMobile ? 12 : 24 }}>
         <button onClick={handleEditBack}>← Back to Grid</button>
-        <h2 style={{ color: '#f3f3f3' }}>Words for {num}</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '12px 0' }}>
+          <button onClick={goToPrev} disabled={currentIdx === 0}>&lt; Previous</button>
+          <h2 style={{ color: '#f3f3f3', margin: 0 }}>Words for {num}</h2>
+          <button onClick={goToNext} disabled={currentIdx === allNumbers.length - 1}>Next &gt;</button>
+        </div>
         <WordInputBox
           inputValue={inputValue}
           setInputValue={v => { setInputValue(v); setError(''); }}
