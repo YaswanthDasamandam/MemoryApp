@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 import React from 'react'
+import { normalizeWord } from './utils/normalizeWord.mjs'
 
 const STAGES = [
   { id: 1, name: 'Stage 1: Single Digit ↔ Sound' },
@@ -21,12 +22,6 @@ function App() {
   }
   function setStats(stats) {
     localStorage.setItem('memoryStats', JSON.stringify(stats));
-  }
-
-  // Utility: Normalize a word to capitalized form
-  function normalizeWord(word) {
-    if (!word) return word;
-    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
   }
 
   // Stage 2 words in localStorage
