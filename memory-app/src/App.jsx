@@ -846,6 +846,17 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
     return localStorage.getItem('practiceExistingOnly') === 'true';
   });
 
+  // Restore Escape key handler for back navigation
+  useEffect(() => {
+    function handleEsc(e) {
+      if (e.key === 'Escape') {
+        onBack();
+      }
+    }
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [onBack]);
+
   // Helper to get next number based on practiceExistingOnly
   function getNextPracticeNumber() {
     if (practiceExistingOnly) {
@@ -897,12 +908,12 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
       setFeedback('✅ Correct!');
       setScore(s => ({ correct: s.correct + 1, total: s.total + 1 }));
       showNotification('Correct!', 'success');
-      setTimeout(() => {
-        setInputValue('');
-        setFeedback('');
-        setCurrentNum(getNextPracticeNumber());
-        if (inputRef.current) inputRef.current.focus();
-      }, 1000);
+      // Immediately go to next word
+      setInputValue('');
+      setFeedback('');
+      setCurrentNum(getNextPracticeNumber());
+      if (inputRef.current) inputRef.current.focus();
+      return;
     } else if (!practiceExistingOnly && encodings.some(actual => isSubsequence(expected, actual))) {
       // New valid word: add to list immediately (case-insensitive check)
       const newWords = { ...words };
