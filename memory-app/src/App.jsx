@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import './App.css'
 import React from 'react'
 import { normalizeWord } from './utils/normalizeWord.mjs'
+import { MAJOR_SYSTEM, getMajorSystemDigits, getMajorSystemMappingDetails } from './utils/majorSystem.mjs'
 
 const STAGES = [
   { id: 1, name: 'Stage 1: Single Digit ↔ Sound' },
@@ -162,56 +163,8 @@ function PracticeStage({ stage, onBack, getStats, setStats }) {
   );
 }
 
-const MAJOR_SYSTEM = [
-  { digit: 0, sounds: ['S', 'Z'] },
-  { digit: 1, sounds: ['T', 'D'] },
-  { digit: 2, sounds: ['N'] },
-  { digit: 3, sounds: ['M'] },
-  { digit: 4, sounds: ['R'] },
-  { digit: 5, sounds: ['L'] },
-  { digit: 6, sounds: ['J', 'SH', 'CH', 'G (soft)'] },
-  { digit: 7, sounds: ['K', 'G (hard)', 'C (hard)'] },
-  { digit: 8, sounds: ['F', 'V'] },
-  { digit: 9, sounds: ['P', 'B'] },
-];
-
 function getRandomInt(max) {
   return Math.floor(Math.random() * max);
-}
-
-function getMajorSystemDigits(word) {
-  // Build a map from letter to possible digits
-  const soundToDigits = {};
-  MAJOR_SYSTEM.forEach(({ digit, sounds }) => {
-    sounds.forEach(sound => {
-      const base = sound[0].toUpperCase();
-      if (!soundToDigits[base]) soundToDigits[base] = new Set();
-      soundToDigits[base].add(digit);
-    });
-  });
-  const ignored = /[AEIOUWHY]/i;
-  // For each letter, get possible digits (or null if ignored)
-  let digitOptions = [];
-  for (let i = 0; i < word.length; i++) {
-    const ch = word[i].toUpperCase();
-    if (ignored.test(ch)) continue;
-    if (soundToDigits[ch]) {
-      digitOptions.push(Array.from(soundToDigits[ch]));
-    }
-  }
-  // Generate all combinations
-  function combine(arr, prefix = [], out = []) {
-    if (arr.length === 0) {
-      out.push(prefix.join(''));
-      return out;
-    }
-    for (let d of arr[0]) {
-      combine(arr.slice(1), [...prefix, d], out);
-    }
-    return out;
-  }
-  if (digitOptions.length === 0) return [''];
-  return combine(digitOptions);
 }
 
 // Shared card style for practice/edit screens
@@ -552,6 +505,38 @@ function useIsMobile() {
   return isMobile;
 }
 
+// Inline Major System mapping visualization
+function MajorSystemMappingInline({ word }) {
+  if (!word) return null;
+  const details = getMajorSystemMappingDetails(word);
+  return (
+    <div style={{
+      marginTop: 10,
+      background: '#23272f',
+      borderRadius: 12,
+      padding: 8,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+      maxWidth: 320
+    }}>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
+        {details.map((d, i) => (
+          <div key={i} style={{
+            padding: '3px 6px', borderRadius: 6, background: d.mapped ? '#2ecc40' : (d.ignored ? '#888' : '#ff4136'), color: '#fff', minWidth: 18, textAlign: 'center', fontWeight: 600
+          }}>
+            <div style={{ fontSize: 13 }}>{d.letter}</div>
+            <div style={{ fontSize: 10 }}>
+              {d.mapped ? `→ ${d.digit}` : (d.ignored ? 'Ignored' : '—')}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ color: '#fff', fontSize: 12 }}>
+        <b>Result:</b> {details.filter(d => d.mapped).map(d => d.digit).join('') || '(none)'}
+      </div>
+    </div>
+  );
+}
+
 function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Screen, selectedNumber, setSelectedNumber, onPractice, showNotification }) {
   const isMobile = useIsMobile();
   const [words, updateWords] = useState(getWords());
@@ -795,6 +780,7 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
           error={error}
           asForm={true}
         />
+        <MajorSystemMappingInline word={inputValue} />
         <div style={{
           display: 'flex',
           flexWrap: 'wrap',
@@ -1027,6 +1013,7 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
           Skip
         </button>
       </div>
+      <MajorSystemMappingInline word={inputValue} />
       {feedback && <div style={{ marginBottom: 8, fontWeight: 'bold', color: '#fff' }}>{feedback}</div>}
     </div>
   );
