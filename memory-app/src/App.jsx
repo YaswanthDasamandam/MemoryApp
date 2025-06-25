@@ -545,6 +545,7 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
   const inputRef = React.useRef(null);
   // For upload
   const fileInputRef = React.useRef(null);
+  const [showMapping, setShowMapping] = useState(false);
 
   React.useEffect(() => {
     updateWords(getWords());
@@ -772,7 +773,7 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
         </div>
         <WordInputBox
           inputValue={inputValue}
-          setInputValue={v => { setInputValue(v); setError(''); }}
+          setInputValue={v => { setInputValue(v); setError(''); setShowMapping(false); }}
           onSubmit={handleAddWord}
           inputRef={inputRef}
           placeholder="Add a word"
@@ -780,7 +781,22 @@ function Stage2WordsPage({ onBack, getWords, setWords, stage2Screen, setStage2Sc
           error={error}
           asForm={true}
         />
-        <MajorSystemMappingInline word={inputValue} />
+        <div style={{ position: 'relative', minHeight: 40, marginBottom: 4 }}>
+          <div style={{ opacity: showMapping ? 1 : 0.25, pointerEvents: showMapping ? 'auto' : 'none' }}>
+            {inputValue && <MajorSystemMappingInline word={inputValue} />}
+          </div>
+          {!showMapping && inputValue && (
+            <div
+              onClick={() => setShowMapping(true)}
+              style={{
+                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                background: 'rgba(30,30,30,0.85)', color: '#fff', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13, fontWeight: 500, zIndex: 2
+              }}
+            >
+              Click to reveal mapping
+            </div>
+          )}
+        </div>
         <div style={{
           display: 'flex',
           flexWrap: 'wrap',
@@ -1013,7 +1029,6 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
           Skip
         </button>
       </div>
-      <MajorSystemMappingInline word={inputValue} />
       {feedback && <div style={{ marginBottom: 8, fontWeight: 'bold', color: '#fff' }}>{feedback}</div>}
     </div>
   );
