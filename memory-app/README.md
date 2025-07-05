@@ -21,6 +21,12 @@ Start the app locally with:
 npm run dev
 ```
 
+### To deploy 
+
+```bash
+npm run deploy
+```
+
 This will start the Vite development server. By default, you can access the app at [http://localhost:5173/](http://localhost:5173/).
 
 Currently, two official plugins are available:
@@ -31,6 +37,47 @@ Currently, two official plugins are available:
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+## Memory Training App Features
+
+This app is designed to help you improve your memory using various mnemonic techniques. It includes three main stages:
+
+### Stage 1: Major System Practice
+- Practice converting numbers to words using the Major System
+- Multiple practice modes: Number-to-Word, Word-to-Number, and Mixed
+- Track your progress and accuracy
+
+### Stage 2: Word Management
+- Create and manage your personal word associations for numbers 0-99
+- Add, edit, and remove words for each number
+- Practice recalling your custom word associations
+- Import/export your word data
+
+### Stage 3: Person-Object-Action (POA) System
+The POA system is an advanced memory technique that helps you remember numbers by creating vivid mental images involving a person, an object, and an action.
+
+#### POA Management Page
+- **Grid View**: Browse all numbers (0-99) and see your POA entries
+- **Add POAs**: Click any number to add a new Person-Object-Action combination
+- **Edit POAs**: Modify existing POA entries with new people, objects, or actions
+- **Remove POAs**: Delete POA entries you no longer need
+- **Data Management**: Import/export your POA data for backup or sharing
+
+#### POA Practice Mode
+- **Number-to-POA**: Practice recalling the Person-Object-Action for a given number
+- **POA-to-Number**: Practice recalling the number for a given Person-Object-Action
+- **Strict Mode**: Practice only with numbers that have saved POA entries
+- **Score Tracking**: Monitor your accuracy and progress
+- **Flexible Input**: Partial matches are accepted (e.g., just the person's name)
+
+#### How POA Works
+1. **Person**: Choose a memorable person (real or fictional)
+2. **Object**: Select a distinctive object
+3. **Action**: Create a vivid action connecting the person and object
+
+Example: For number 23, you might create "Einstein (Person) → Telescope (Object) → Looking through (Action)"
+
+This creates a memorable mental image that's easier to recall than abstract numbers.
 
 ## Planned Feature: Weak Areas Analysis & Targeted Practice
 
