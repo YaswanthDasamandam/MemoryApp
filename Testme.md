@@ -41,6 +41,17 @@ This file serves as a checklist and manual test script for all new functionaliti
 ### 7. Mobile Responsiveness
 - [ ] App layout adapts for mobile screens (≤600px width).
 
+### 8. Stage 3: Person-Object-Action (POA) System
+- [ ] User can select Stage 3 and view a grid of numbers (0-9, 00-99).
+- [ ] User can click a number to add/edit Person-Object-Action associations.
+- [ ] POA entries require all three fields (Person, Object, Action) to be filled.
+- [ ] Duplicate POAs are not allowed (case-insensitive).
+- [ ] POA data is persisted in localStorage.
+- [ ] User can download/upload their POA data as JSON.
+- [ ] User can practice POA recall in both directions (Number → POA and POA → Number).
+- [ ] Practice mode includes strict mode toggle for saved POAs only.
+- [ ] Score and feedback update correctly during POA practice.
+
 ---
 
 (Add new functionality and its test steps below)

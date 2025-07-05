@@ -7,6 +7,7 @@ import { MAJOR_SYSTEM, getMajorSystemDigits, getMajorSystemMappingDetails } from
 const STAGES = [
   { id: 1, name: 'Stage 1: Single Digit ↔ Sound' },
   { id: 2, name: 'Stage 2: Two Digits ↔ Word' },
+  { id: 3, name: 'Stage 3: Person-Object-Action (POA)' },
 ];
 
 function App() {
@@ -48,12 +49,47 @@ function App() {
     localStorage.setItem('stage2Words', JSON.stringify(normalized));
   }
 
+  // POA system storage
+  function getPOA() {
+    const raw = JSON.parse(localStorage.getItem('poaData') || '{}');
+    // Normalize all POA entries
+    const normalized = {};
+    for (const num in raw) {
+      if (Array.isArray(raw[num])) {
+        normalized[num] = raw[num].map(poa => ({
+          person: normalizeWord(poa.person?.trim() || ''),
+          object: normalizeWord(poa.object?.trim() || ''),
+          action: normalizeWord(poa.action?.trim() || ''),
+          id: poa.id || Date.now() + Math.random()
+        }));
+      }
+    }
+    return normalized;
+  }
+  function setPOA(poaData) {
+    // Normalize before saving
+    const normalized = {};
+    for (const num in poaData) {
+      if (Array.isArray(poaData[num])) {
+        normalized[num] = poaData[num].map(poa => ({
+          person: normalizeWord(poa.person?.trim() || ''),
+          object: normalizeWord(poa.object?.trim() || ''),
+          action: normalizeWord(poa.action?.trim() || ''),
+          id: poa.id || Date.now() + Math.random()
+        }));
+      }
+    }
+    localStorage.setItem('poaData', JSON.stringify(normalized));
+  }
+
   function handleStageSelect(stageId) {
     setStage(stageId);
     if (stageId === 2) {
       setScreen('stage2words');
       setStage2Screen('grid');
       setSelectedNumber(null);
+    } else if (stageId === 3) {
+      setScreen('poa');
     } else {
       setScreen('practice');
     }
@@ -68,7 +104,7 @@ function App() {
     function handleEsc(e) {
       if (e.key === 'Escape') {
         // Only go back if not on home
-        if (screen === 'practice' || screen === 'progress') {
+        if (screen === 'practice' || screen === 'progress' || screen === 'poa') {
           handleBack();
         } else if (screen === 'stage2words') {
           // For Stage2WordsPage, let it handle Esc itself
@@ -142,6 +178,23 @@ function App() {
           onBack={() => setScreen('stage2words')}
           getWords={getWords}
           setWords={setWords}
+          showNotification={showNotification}
+        />
+      )}
+      {screen === 'poa' && (
+        <POAPage
+          onBack={handleBack}
+          getPOA={getPOA}
+          setPOA={setPOA}
+          showNotification={showNotification}
+          onPractice={() => setScreen('poapractice')}
+        />
+      )}
+      {screen === 'poapractice' && (
+        <POAPractice
+          onBack={() => setScreen('poa')}
+          getPOA={getPOA}
+          setPOA={setPOA}
           showNotification={showNotification}
         />
       )}
@@ -1008,6 +1061,720 @@ function Stage2Practice({ onBack, getWords, setWords, showNotification }) {
           onSubmit={handleSubmit}
           inputRef={inputRef}
           placeholder="Type a word you associate with this number"
+          asForm={true}
+          style={{ flex: 1, marginBottom: 0 }}
+        />
+        <button
+          onClick={handleSkip}
+          style={{
+            background: '#888',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 8,
+            padding: '14px 18px',
+            fontSize: 18,
+            height: 52,
+            alignSelf: 'center',
+            cursor: 'pointer',
+            marginLeft: 0
+          }}
+        >
+          Skip
+        </button>
+      </div>
+      {feedback && <div style={{ marginBottom: 8, fontWeight: 'bold', color: '#fff' }}>{feedback}</div>}
+    </div>
+  );
+}
+
+function POAPage({ onBack, getPOA, setPOA, showNotification, onPractice }) {
+  const isMobile = useIsMobile();
+  const [poaData, setPOAData] = useState(getPOA());
+  const [selectedNumber, setSelectedNumber] = useState(null);
+  const [poaScreen, setPOAScreen] = useState('grid'); // 'grid' or 'edit'
+  const [editingPOA, setEditingPOA] = useState(null);
+  const [personInput, setPersonInput] = useState('');
+  const [objectInput, setObjectInput] = useState('');
+  const [actionInput, setActionInput] = useState('');
+  const [error, setError] = useState('');
+  const personInputRef = React.useRef(null);
+  const fileInputRef = React.useRef(null);
+
+  React.useEffect(() => {
+    setPOAData(getPOA());
+  }, [poaScreen]);
+
+  // Esc key handling for edit mode
+  React.useEffect(() => {
+    function handleEsc(e) {
+      if (e.key === 'Escape' && poaScreen === 'edit') {
+        if (!personInputRef.current || document.activeElement !== personInputRef.current || (!personInput && !objectInput && !actionInput)) {
+          setPOAScreen('grid');
+          setSelectedNumber(null);
+          setEditingPOA(null);
+        }
+      }
+    }
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [poaScreen, personInput, objectInput, actionInput]);
+
+  function handleNumberClick(num) {
+    setSelectedNumber(num);
+    setPOAScreen('edit');
+    setEditingPOA(null);
+    setPersonInput('');
+    setObjectInput('');
+    setActionInput('');
+    setError('');
+  }
+
+  function handleAddPOA() {
+    setError('');
+    if (!personInput.trim() || !objectInput.trim() || !actionInput.trim()) {
+      setError('Please fill in all three fields: Person, Object, and Action');
+      return;
+    }
+
+    const num = selectedNumber;
+    const newPOA = {
+      person: personInput.trim(),
+      object: objectInput.trim(),
+      action: actionInput.trim(),
+      id: Date.now() + Math.random()
+    };
+
+    const newPOAData = { ...poaData };
+    newPOAData[num] = newPOAData[num] || [];
+    
+    // Check for duplicates (case-insensitive)
+    const isDuplicate = newPOAData[num].some(poa => 
+      poa.person.toLowerCase() === newPOA.person.toLowerCase() &&
+      poa.object.toLowerCase() === newPOA.object.toLowerCase() &&
+      poa.action.toLowerCase() === newPOA.action.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      showNotification('This POA already exists for this number.', 'error');
+      return;
+    }
+
+    newPOAData[num].push(newPOA);
+    setPOAData(newPOAData);
+    setPOA(newPOAData);
+    showNotification('POA added!', 'success');
+    setPersonInput('');
+    setObjectInput('');
+    setActionInput('');
+  }
+
+  function handleEditPOA(poa) {
+    setEditingPOA(poa);
+    setPersonInput(poa.person);
+    setObjectInput(poa.object);
+    setActionInput(poa.action);
+    setError('');
+  }
+
+  function handleUpdatePOA() {
+    setError('');
+    if (!personInput.trim() || !objectInput.trim() || !actionInput.trim()) {
+      setError('Please fill in all three fields: Person, Object, and Action');
+      return;
+    }
+
+    const num = selectedNumber;
+    const updatedPOA = {
+      ...editingPOA,
+      person: personInput.trim(),
+      object: objectInput.trim(),
+      action: actionInput.trim()
+    };
+
+    const newPOAData = { ...poaData };
+    newPOAData[num] = newPOAData[num].map(poa => 
+      poa.id === editingPOA.id ? updatedPOA : poa
+    );
+
+    setPOAData(newPOAData);
+    setPOA(newPOAData);
+    showNotification('POA updated!', 'success');
+    setEditingPOA(null);
+    setPersonInput('');
+    setObjectInput('');
+    setActionInput('');
+  }
+
+  function handleRemovePOA(poa) {
+    const num = selectedNumber;
+    const newPOAData = { ...poaData };
+    newPOAData[num] = newPOAData[num].filter(p => p.id !== poa.id);
+    if (newPOAData[num].length === 0) {
+      delete newPOAData[num];
+    }
+    setPOAData(newPOAData);
+    setPOA(newPOAData);
+    showNotification('POA removed!', 'success');
+  }
+
+  function handleCancelEdit() {
+    setEditingPOA(null);
+    setPersonInput('');
+    setObjectInput('');
+    setActionInput('');
+    setError('');
+  }
+
+  function handleEditBack() {
+    setPOAScreen('grid');
+    setSelectedNumber(null);
+    setEditingPOA(null);
+    setError('');
+  }
+
+  // --- Download/Upload Handlers ---
+  function handleDownloadPOA() {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(poaData, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", "poaData.json");
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  }
+
+  function handleUploadClick() {
+    if (fileInputRef.current) fileInputRef.current.value = null;
+    fileInputRef.current && fileInputRef.current.click();
+  }
+
+  function handleFileChange(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      try {
+        const imported = JSON.parse(event.target.result);
+        if (typeof imported !== 'object' || Array.isArray(imported)) throw new Error('Invalid format');
+        setPOAData(imported);
+        setPOA(imported);
+        showNotification('POA data imported successfully!', 'success');
+      } catch (err) {
+        showNotification('Failed to import: Invalid file.', 'error');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // Grid of numbers 0-9 and 00-99
+  if (poaScreen === 'grid') {
+    const singleDigits = Array.from({ length: 10 }, (_, i) => i.toString());
+    const twoDigits = Array.from({ length: 100 }, (_, i) => i.toString().padStart(2, '0'));
+    const allNumbers = [...singleDigits, ...twoDigits];
+    
+    return (
+      <div>
+        <button onClick={onBack}>← Back</button>
+        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', marginBottom: 8, marginTop: 8, gap: isMobile ? 8 : 0 }}>
+          <div>
+            <button onClick={onPractice}>Practice Mode</button>
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexDirection: isMobile ? 'column' : 'row' }}>
+            <button onClick={handleDownloadPOA}>Download POA Data</button>
+            <button onClick={handleUploadClick}>Upload POA Data</button>
+            <input
+              type="file"
+              accept="application/json"
+              style={{ display: 'none' }}
+              ref={fileInputRef}
+              onChange={handleFileChange}
+            />
+          </div>
+        </div>
+        <h2>Person-Object-Action (POA) System</h2>
+        <p style={{ marginBottom: 16, color: '#b0b6c3' }}>
+          Click on a number to add or edit Person-Object-Action associations.
+        </p>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(auto-fit, minmax(60px, 1fr))',
+            gap: isMobile ? 4 : 8,
+            maxWidth: isMobile ? '100vw' : 1100,
+            margin: '0 auto',
+            width: '100%',
+            background: 'var(--stage2-bg, #23272f)',
+            borderRadius: 16,
+            boxShadow: '0 2px 12px rgba(0,0,0,0.12)',
+            padding: isMobile ? 2 : 8,
+          }}
+        >
+          {allNumbers.map(num => {
+            const poaList = poaData[num] || [];
+            let preview = '';
+            if (poaList.length > 0) {
+              const firstPOA = poaList[0];
+              preview = `${firstPOA.person} → ${firstPOA.object} → ${firstPOA.action}`;
+              if (poaList.length > 1) {
+                preview += ` +${poaList.length - 1} more`;
+              }
+            }
+            return (
+              <button
+                key={num}
+                style={{
+                  padding: 6,
+                  minHeight: 36,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 14,
+                  wordBreak: 'break-word',
+                  background: '#23272f',
+                  color: '#f3f3f3',
+                  border: '1px solid #353a45',
+                  borderRadius: 8,
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.10)',
+                  transition: 'background 0.2s',
+                }}
+                onClick={() => handleNumberClick(num)}
+              >
+                <div style={{ fontWeight: 'bold', fontSize: 15 }}>{num}</div>
+                <div style={{ fontSize: 10, color: '#b0b6c3', marginTop: 2, minHeight: 12 }}>
+                  {preview}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // Edit POA for a selected number
+  if (poaScreen === 'edit') {
+    const num = selectedNumber;
+    const singleDigits = Array.from({ length: 10 }, (_, i) => i.toString());
+    const twoDigits = Array.from({ length: 100 }, (_, i) => i.toString().padStart(2, '0'));
+    const allNumbers = [...singleDigits, ...twoDigits];
+    const currentIdx = allNumbers.indexOf(num);
+    
+    function goToPrev() {
+      if (currentIdx > 0) {
+        setSelectedNumber(allNumbers[currentIdx - 1]);
+        setEditingPOA(null);
+        setPersonInput('');
+        setObjectInput('');
+        setActionInput('');
+        setError('');
+      }
+    }
+    function goToNext() {
+      if (currentIdx < allNumbers.length - 1) {
+        setSelectedNumber(allNumbers[currentIdx + 1]);
+        setEditingPOA(null);
+        setPersonInput('');
+        setObjectInput('');
+        setActionInput('');
+        setError('');
+      }
+    }
+
+    return (
+      <div style={{ maxWidth: 600, margin: '0 auto', width: '100%', background: '#23272f', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.12)', padding: isMobile ? 12 : 24 }}>
+        <button onClick={handleEditBack}>← Back to Grid</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '12px 0' }}>
+          <button onClick={goToPrev} disabled={currentIdx === 0}>&lt; Previous</button>
+          <h2 style={{ color: '#f3f3f3', margin: 0 }}>POA for {num}</h2>
+          <button onClick={goToNext} disabled={currentIdx === allNumbers.length - 1}>Next &gt;</button>
+        </div>
+        
+        {/* Add/Edit Form */}
+        <div style={{ marginBottom: 24, background: '#181b20', borderRadius: 12, padding: 16 }}>
+          <h3 style={{ color: '#f3f3f3', marginBottom: 16 }}>
+            {editingPOA ? 'Edit POA' : 'Add New POA'}
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={{ display: 'block', color: '#f3f3f3', marginBottom: 4 }}>Person:</label>
+              <input
+                type="text"
+                value={personInput}
+                onChange={e => setPersonInput(e.target.value)}
+                placeholder="Enter person name"
+                style={{
+                  width: '100%',
+                  fontSize: 16,
+                  background: '#23272f',
+                  color: '#f3f3f3',
+                  border: '1.5px solid #353a45',
+                  borderRadius: 8,
+                  padding: '12px 16px',
+                }}
+                ref={personInputRef}
+                autoFocus
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', color: '#f3f3f3', marginBottom: 4 }}>Object:</label>
+              <input
+                type="text"
+                value={objectInput}
+                onChange={e => setObjectInput(e.target.value)}
+                placeholder="Enter object"
+                style={{
+                  width: '100%',
+                  fontSize: 16,
+                  background: '#23272f',
+                  color: '#f3f3f3',
+                  border: '1.5px solid #353a45',
+                  borderRadius: 8,
+                  padding: '12px 16px',
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', color: '#f3f3f3', marginBottom: 4 }}>Action:</label>
+              <input
+                type="text"
+                value={actionInput}
+                onChange={e => setActionInput(e.target.value)}
+                placeholder="Enter action"
+                style={{
+                  width: '100%',
+                  fontSize: 16,
+                  background: '#23272f',
+                  color: '#f3f3f3',
+                  border: '1.5px solid #353a45',
+                  borderRadius: 8,
+                  padding: '12px 16px',
+                }}
+              />
+            </div>
+            {error && <div style={{ color: '#ff4136', fontSize: 14 }}>{error}</div>}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={editingPOA ? handleUpdatePOA : handleAddPOA}
+                style={{
+                  background: '#2ecc40',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '12px 24px',
+                  fontSize: 16,
+                  cursor: 'pointer',
+                }}
+              >
+                {editingPOA ? 'Update' : 'Add'}
+              </button>
+              {editingPOA && (
+                <button
+                  onClick={handleCancelEdit}
+                  style={{
+                    background: '#888',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '12px 24px',
+                    fontSize: 16,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Existing POAs */}
+        <div>
+          <h3 style={{ color: '#f3f3f3', marginBottom: 16 }}>Existing POAs:</h3>
+          {(poaData[num] || []).map(poa => (
+            <div
+              key={poa.id}
+              style={{
+                background: '#353a45',
+                color: '#f3f3f3',
+                padding: '16px',
+                borderRadius: 12,
+                marginBottom: 12,
+                border: editingPOA?.id === poa.id ? '2px solid #2ecc40' : '1px solid #444',
+              }}
+            >
+              <div style={{ marginBottom: 8 }}>
+                <strong>Person:</strong> {poa.person}
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <strong>Object:</strong> {poa.object}
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <strong>Action:</strong> {poa.action}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => handleEditPOA(poa)}
+                  style={{
+                    background: '#0074d9',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '6px 12px',
+                    fontSize: 14,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleRemovePOA(poa)}
+                  style={{
+                    background: '#ff4136',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '6px 12px',
+                    fontSize: 14,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ))}
+          {(!poaData[num] || poaData[num].length === 0) && (
+            <div style={{ color: '#888', textAlign: 'center', padding: 20 }}>
+              No POAs yet for {num}. Add one above!
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
+function POAPractice({ onBack, getPOA, setPOA, showNotification }) {
+  const isMobile = useIsMobile();
+  const [poaData, setPOAData] = useState(getPOA());
+  const [currentNum, setCurrentNum] = useState(null);
+  const [currentPOA, setCurrentPOA] = useState(null);
+  const [userAnswer, setUserAnswer] = useState('');
+  const [feedback, setFeedback] = useState('');
+  const [score, setScore] = useState({ correct: 0, total: 0 });
+  const [practiceMode, setPracticeMode] = useState('number-to-poa'); // 'number-to-poa' or 'poa-to-number'
+  const inputRef = React.useRef(null);
+  const [practiceExistingOnly, setPracticeExistingOnly] = useState(() => {
+    return localStorage.getItem('poaPracticeExistingOnly') === 'true';
+  });
+
+  // Restore Escape key handler for back navigation
+  useEffect(() => {
+    function handleEsc(e) {
+      if (e.key === 'Escape') {
+        onBack();
+      }
+    }
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [onBack]);
+
+  // Helper to get next number based on practiceExistingOnly
+  function getNextPracticeNumber() {
+    if (practiceExistingOnly) {
+      const numbersWithPOA = Object.keys(poaData).filter(num => (poaData[num] && poaData[num].length));
+      if (numbersWithPOA.length > 0) {
+        return numbersWithPOA[Math.floor(Math.random() * numbersWithPOA.length)];
+      } else {
+        return getRandomNum(); // fallback
+      }
+    } else {
+      return getRandomNum();
+    }
+  }
+
+  function handleTogglePracticeMode() {
+    setPracticeExistingOnly(v => {
+      const newValue = !v;
+      localStorage.setItem('poaPracticeExistingOnly', newValue);
+      return newValue;
+    });
+  }
+
+  function handleSkip() {
+    setUserAnswer('');
+    setFeedback('');
+    setCurrentNum(getNextPracticeNumber());
+    setCurrentPOA(null);
+    if (inputRef.current) inputRef.current.focus();
+  }
+
+  function handleSubmit() {
+    if (!userAnswer.trim()) return;
+    
+    if (practiceMode === 'number-to-poa') {
+      // User is trying to recall the POA for a number
+      const num = currentNum;
+      const poaList = poaData[num] || [];
+      const userInput = userAnswer.trim().toLowerCase();
+      
+      // Check if user's answer matches any POA (case-insensitive)
+      const isCorrect = poaList.some(poa => {
+        const poaString = `${poa.person} ${poa.object} ${poa.action}`.toLowerCase();
+        return poaString.includes(userInput) || userInput.includes(poa.person.toLowerCase()) || 
+               userInput.includes(poa.object.toLowerCase()) || userInput.includes(poa.action.toLowerCase());
+      });
+
+      if (isCorrect) {
+        setFeedback('✅ Correct!');
+        setScore(s => ({ correct: s.correct + 1, total: s.total + 1 }));
+        showNotification('Correct!', 'success');
+        setTimeout(() => {
+          setUserAnswer('');
+          setFeedback('');
+          setCurrentNum(getNextPracticeNumber());
+          setCurrentPOA(null);
+          if (inputRef.current) inputRef.current.focus();
+        }, 1200);
+      } else {
+        const correctAnswers = poaList.map(poa => `${poa.person} → ${poa.object} → ${poa.action}`).join(', ');
+        setFeedback(`❌ Incorrect. Correct answers: ${correctAnswers || 'None yet.'}`);
+        setScore(s => ({ ...s, total: s.total + 1 }));
+        showNotification('Incorrect. Try again!', 'error');
+        setTimeout(() => {
+          setUserAnswer('');
+          setFeedback('');
+          if (inputRef.current) inputRef.current.focus();
+        }, 2000);
+      }
+    } else {
+      // User is trying to recall the number for a POA
+      const poa = currentPOA;
+      const userInput = userAnswer.trim();
+      
+      if (userInput === currentNum) {
+        setFeedback('✅ Correct!');
+        setScore(s => ({ correct: s.correct + 1, total: s.total + 1 }));
+        showNotification('Correct!', 'success');
+        setTimeout(() => {
+          setUserAnswer('');
+          setFeedback('');
+          setCurrentNum(getNextPracticeNumber());
+          setCurrentPOA(null);
+          if (inputRef.current) inputRef.current.focus();
+        }, 1200);
+      } else {
+        setFeedback(`❌ Incorrect. The number is ${currentNum}`);
+        setScore(s => ({ ...s, total: s.total + 1 }));
+        showNotification('Incorrect. Try again!', 'error');
+        setTimeout(() => {
+          setUserAnswer('');
+          setFeedback('');
+          if (inputRef.current) inputRef.current.focus();
+        }, 2000);
+      }
+    }
+  }
+
+  // Initialize currentNum on mount only
+  useEffect(() => {
+    setCurrentNum(getNextPracticeNumber());
+    setUserAnswer('');
+    setFeedback('');
+    if (inputRef.current) inputRef.current.focus();
+  }, []);
+
+  // Update currentPOA when currentNum changes
+  useEffect(() => {
+    if (currentNum && practiceMode === 'poa-to-number') {
+      const poaList = poaData[currentNum] || [];
+      if (poaList.length > 0) {
+        setCurrentPOA(poaList[Math.floor(Math.random() * poaList.length)]);
+      } else {
+        setCurrentPOA(null);
+      }
+    }
+  }, [currentNum, practiceMode, poaData]);
+
+  function getRandomNum() {
+    const singleDigits = Array.from({ length: 10 }, (_, i) => i.toString());
+    const twoDigits = Array.from({ length: 100 }, (_, i) => i.toString().padStart(2, '0'));
+    const allNums = [...singleDigits, ...twoDigits];
+    return allNums[Math.floor(Math.random() * allNums.length)];
+  }
+
+  function handleInputChange(v) {
+    setUserAnswer(v);
+    setFeedback('');
+  }
+
+  function handleModeChange(newMode) {
+    setPracticeMode(newMode);
+    setUserAnswer('');
+    setFeedback('');
+    setCurrentNum(getNextPracticeNumber());
+    setCurrentPOA(null);
+    if (inputRef.current) inputRef.current.focus();
+  }
+
+  if (!currentNum) return null;
+
+  return (
+    <div style={{ ...cardStyle, padding: isMobile ? 12 : 24 }}>
+      <button onClick={onBack} style={{ alignSelf: 'flex-start', marginBottom: 8 }}>← Back</button>
+      <h2 style={{ color: '#f3f3f3', marginBottom: 12 }}>POA Practice</h2>
+      
+      <div style={{ marginBottom: 16 }}>
+        <div className="button-group">
+          <button 
+            onClick={() => handleModeChange('number-to-poa')} 
+            disabled={practiceMode === 'number-to-poa'}
+          >
+            Number → POA
+          </button>
+          <button 
+            onClick={() => handleModeChange('poa-to-number')} 
+            disabled={practiceMode === 'poa-to-number'}
+          >
+            POA → Number
+          </button>
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <b>Score:</b> {score.correct} / {score.total}
+        <label style={{ display: 'flex', alignItems: 'center', marginLeft: 24, fontSize: 16, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={practiceExistingOnly}
+            onChange={handleTogglePracticeMode}
+            style={{ marginRight: 6 }}
+          />
+          Strict mode (saved POAs only)
+        </label>
+      </div>
+
+      <div style={{ fontSize: 22, marginBottom: 10 }}>
+        {practiceMode === 'number-to-poa' ? (
+          <>
+            Number: <b>{currentNum}</b>
+          </>
+        ) : (
+          <>
+            POA: <b>{currentPOA ? `${currentPOA.person} → ${currentPOA.object} → ${currentPOA.action}` : 'Loading...'}</b>
+          </>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, width: '100%', maxWidth: 500 }}>
+        <WordInputBox
+          inputValue={userAnswer}
+          setInputValue={handleInputChange}
+          onSubmit={handleSubmit}
+          inputRef={inputRef}
+          placeholder={practiceMode === 'number-to-poa' ? 'Enter the POA (e.g., "John car drive")' : 'Enter the number'}
           asForm={true}
           style={{ flex: 1, marginBottom: 0 }}
         />
